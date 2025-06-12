@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard de Medições</title>
+
+      <!-- Font Awesome atualizado -->
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+      <!-- Chart.js e plugin de zoom -->
+           
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@sgratzl/chartjs-chart-boxplot"></script>
+
+      <style>
+          :root {
+              --azul-primario: #0077b6;
+              --azul-claro: #caf0f8;
+              --azul-medio: #90e0ef;
+              --cinza-claro: #f1f1f1;
+              --cinza-escuro: #333;
+          }
+  
+          body {
+              font-family: 'Segoe UI', sans-serif;
+              background-color: #f8f9fa;
+              color: var(--cinza-escuro);
+              margin: 0;
+              padding: 20px;
+          }
+  
+          .dark-mode {
+              background-color: #1a1a1a;
+              color: #f1f1f1;
+          }
+  
+          .dark-mode .chart-container,
+          .dark-mode form,
+          .dark-mode table.small-table,
+          .dark-mode .dropdown-menu {
+              background-color: #2c2c2c;
+              color: #f1f1f1;
+          }
+  
+          .dark-mode table.small-table th {
+              background-color: #444;
+              color: #fff;
+          }
+  
+          .dark-mode .dropdown-menu a {
+              color: #f1f1f1;
+          }
+  
+          h1 {
+              text-align: center;
+              color: var(--azul-primario);
+              margin-bottom: 40px;
+          }
+  
+          form {
+              display: flex;
+              flex-wrap: wrap;
+              justify-content: center;
+              gap: 15px;
+              margin-bottom: 40px;
+              background: white;
+              padding: 15px 20px;
+              border-radius: 10px;
+              box-shadow: 0px 2px 5px rgba(0, 119, 182, 0.1);
+          }
+  
+          label {
+              font-weight: 500;
+              margin-right: 5px;
+          }
+  
+          select, button {
+              padding: 8px 12px;
+              border: 1px solid #ccc;
+              border-radius: 5px;
+          }
+  
+          button {
+              background-color: var(--azul-primario);
+              color: white;
+              transition: background-color 0.3s ease;
+          }
+  
+          button:hover {
+              background-color: #023e8a;
+          }
+  
+          .chart-container {
+              background: white;
+              border-radius: 12px;
+              padding: 20px;
+              box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+              margin-bottom: 40px;
+              text-align: center;
+          }
+  
+          canvas {
+              width: 90% !important;
+              height: 400px !important;
+              margin: auto;
+          }
+  
+          table.small-table {
+              width: 60%;
+              margin: 0 auto;
+              font-size: 13px;
+              border-collapse: collapse;
+              background-color: white;
+              box-shadow: 0px 1px 5px rgba(0,0,0,0.05);
+              border-radius: 10px;
+              overflow: hidden;
+          }
+  
+          table.small-table th {
+              background-color: var(--azul-medio);
+              color: #000;
+          }
+  
+          table.small-table td, table.small-table th {
+              padding: 8px 10px;
+              border: 1px solid #e0e0e0;
+          }
+  
+          .chart-container button {
+              margin-top: 15px;
+              background-color: var(--azul-medio);
+              color: #000;
+          }
+  
+          .chart-container button:hover {
+              background-color: var(--azul-claro);
+          }
+  
+          .menu-toggle {
+              position: fixed;
+              top: 20px;
+              left: 30px;
+              font-size: 23px;
+              cursor: pointer;
+              z-index: 2000;
+              
+          }
+  
+          .menu-toggle i {
+              color: var(--cinza-escuro);
+          }
+  
+          .dark-mode .menu-toggle {
+              background-color: #2c2c2c;
+          }
+  
+          .dark-mode .menu-toggle i {
+              color: #f1f1f1;
+          }
+  
+          .dropdown-menu {
+              display: none;
+              position: fixed;
+              top: 60px;
+              left: 30px;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+              z-index: 1000;
+              min-width: 200px;
+          }
+  
+          .dropdown-menu a {
+              display: block;
+              padding: 10px 15px;
+              color: var(--cinza-escuro);
+              text-decoration: none;
+              border-bottom: 1px solid #eee;
+          }
+  
+          .dropdown-menu a:hover {
+              background-color: var(--azul-claro);
+          }
+          .user-info {
+    position: fixed;
+    top: 15px;
+    right: 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    background: white;
+    padding: 6px 12px;
+    border-radius: 25px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    z-index: 2000;
+}
+
+.dark-mode .user-info {
+    background: #2c2c2c;
+    color: #f1f1f1;
+}
+
+.user-info a {
+    color: var(--azul-primario);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.user-info a:hover {
+    text-decoration: underline;
+}
+
+.user-info svg {
+    height: 18px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+      </style>
+    {% load custom_filters %}
+</head>
+<body>
+    <h1>Dashboard de Medições</h1>
+      <div class="user-info">
+    {% if request.user.is_authenticated %}
+        <span>
+            <i class="fas fa-user-circle"></i> {{ request.user.username }}
+        </span>
+        <a href="{% url 'autenticacao:logout' %}">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+    {% else %}
+        <a href="{% url 'autenticacao:login' %}">
+            <i class="fas fa-sign-in-alt"></i> Login
+        </a>
+    {% endif %}
+</div>
+ <!-- User Info -->
+    <div style="text-align: center; margin-bottom: 20px; color: var(--azul-primario);">
+        <i class="fas fa-user"></i> Bem-vindo, <strong>{{ request.user.username }}</strong>
+        {% if request.user.first_name %}
+            ({{ request.user.first_name }} {{ request.user.last_name }})
+        {% endif %}
+    </div>
+    <!-- Botão de Menu -->
+    <div class="menu-toggle" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+    </div>
+    <div id="loading-spinner" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); font-size:24px; color:#0077b6;">
+        <i class="fas fa-spinner fa-spin"></i> Loading...
+    </div>
+
+    <!-- Menu Dropdown -->
+    <div class="dropdown-menu" id="dropdownMenu">
+        <a href="{% url 'caudais:upload_novo_ponto' %}"><i class="fas fa-upload"></i> Upload de Medições</a>
+        <a href="#" onclick="exportarExcel()"><i class="fas fa-file-excel"></i> Exportar para Excel</a>
+        <a href="#" onclick="toggleTheme()"><i class="fas fa-adjust"></i> Alternar Modo Claro/Escuro</a>
+    </div>
+
+
+    <!-- FORMULÁRIO -->
+
+    <form action="{% url 'caudais:dashboard' %}" method="get" onsubmit="showLoading()">
+        {% csrf_token %}
+        <label for="ponto_medicao">Ponto:</label>
+        <select name="ponto_medicao" id="ponto_medicao">
+            <option value="">Selecione</option>
+            {% for ponto in pontos_medicao %}
+                <option value="{{ ponto.id }}" {% if ponto.id == selected_ponto_medicao.id %}selected{% endif %}>
+                    {{ ponto.regiao.nome }} - {{ ponto.regiao.localidade }} : P{{ ponto.id }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <div id="series-selection" style="display: none;">
+            <label>Séries para Comparação:</label>
+            <div id="series-checkboxes" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0;">
+                <!-- Series checkboxes will be populated here -->
+            </div>
+        </div>
+
+        <div id="comparison-years" style="display: none;">
+            <!-- Year selections for each series will be populated here -->
+        </div>
+
+
+        <label for="data_type">Tipo:</label>
+        <select name="data_type" id="data_type">
+            <option value="raw" {% if data_type == 'raw' %}selected{% endif %}>Não Processados</option>
+            <option value="normalized" {% if data_type == 'normalized' %}selected{% endif %}>Normalizados</option>
+            <option value="reconstruido" {% if data_type == 'reconstruido' %}selected{% endif %}>Reconstruídos</option>
+        </select>
+
+        <label for="recon_method" {% if data_type != 'reconstruido' %}style="display:none;"{% endif %}>Método:</label>
+        <select name="recon_method" id="recon_method" {% if data_type != 'reconstruido' %}style="display:none;"{% endif %}>
+            <option value="jq" {% if recon_method == 'jq' %}selected{% endif %}>JQ</option>
+            <option value="tbats" {% if recon_method == 'tbats' %}selected{% endif %}>TBATS</option>
+        </select>
+
+        <input type="hidden" name="comparison_mode" value="true">
+
+        <button type="button" onclick="submitComparison()">Comparar Séries</button>
+    </form>
+
+    <!-- COMPARISON CHART -->
+    <div class="chart-container" id="comparison-chart" style="display: none;">
+        <h2>Comparação de Séries</h2>
+        <canvas id="comparisonChart"></canvas>
+        <button onclick="resetZoom('comparisonChart')">Redefinir Zoom</button>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="chart-container">
+        <h2>Medições Anuais</h2>
+        <canvas id="yearlyChart"></canvas>
+        <button onclick="resetZoom('yearlyChart')">Redefinir Zoom</button>
+    </div>
+
+    <div class="chart-container">
+        <h2>Média Mensal - Ano {{ selected_year }}</h2>
+        <canvas id="monthlyAvgChart"></canvas>
+        <button onclick="resetZoom('monthlyAvgChart')">Redefinir Zoom</button>
+    </div>
+
+    <div class="chart-container">
+        <h2>Total Mensal - Ano {{ selected_year }}</h2>
+        <canvas id="monthlyTotalChart"></canvas>
+        <button onclick="resetZoom('monthlyTotalChart')">Redefinir Zoom</button>
+    </div>
+    <iframe id="download_iframe" style="display: none;"></iframe>
+
+   {% if data_type == 'normalized' or data_type == 'reconstruido' %}
+<div class="chart-container">
+    {% if linha_temporal_labelsT %}
+        <h3>Gráfico de Linha Completo</h3>
+        <canvas id="linhaDiariaChartT" height="100"></canvas>
+        <button onclick="resetZoom('linhaDiariaChartT')">Redefinir Zoom</button>
+        <div style="margin-top: 1rem">
+  <label>De: <input type="datetime-local" id="startTime"></label>
+  <label>Até: <input type="datetime-local" id="endTime"></label>
+  <button onclick="calcularEstatisticas()">Calcular Estatísticas</button>
+</div>
+<div id="resultadoEstatisticas"></div>
+    {% endif %}
+</div>
+{% endif %}
+
+  {% if data_type == 'normalized' or data_type == 'reconstruido' %}
+<div class="chart-container">
+    {% if linha_temporal_labels %}
+        <h3>Gráfico de Linha Diário - {{ selected_year }}</h3>
+        <canvas id="linhaDiariaChart" height="100"></canvas>
+        <button onclick="resetZoom('linhaDiariaChart')">Redefinir Zoom</button>
+    {% endif %}
+</div>
+{% endif %}
+
+
+<div class="chart-container">
+  
+    <h3>Boxplot Mensal - Ano {{ selected_year }}</h3>
+    <canvas id="boxplotChart"></canvas>
+    <button onclick="resetZoom('boxplotChart')">Redefinir Zoom</button>
+</div>
+
+    {% if data_type == 'raw' %}
+    <div class="chart-container">
+        <h2>Contagem Mensal - Ano {{ selected_year }}</h2>
+        <table class="small-table">
+            <thead>
+                <tr>
+                    <th>Mês</th>
+                    <th>Contagem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for label, count in month_names|zip_lists:month_counts %}
+                <tr>
+                    <td>{{ label }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="2">Nenhuma contagem encontrada.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% endif %}
+
+    <!-- SCRIPTS -->
+    <script>
+        const years = {{ years|safe }};
+        const counts = {{ counts|safe }};
+        const totals = {{ totals|safe }};
+        const avgValues = {{ avg_values|safe }};
+        const month_names= {{ month_names|safe }};
+        const monthCounts = {{ month_counts|safe }};
+        const monthAvg = {{ month_avg|safe }};
+        const monthTotals = {{ month_totals|safe }};
+        const linhaTemporalLabels= {{linha_temporal_labels|safe}};
+        const linhaTemporalValores={{ linha_temporal_valores|safe }};
+        const linhaTemporalLabelsT= {{linha_temporal_labelsT|safe}};
+        const linhaTemporalValoresT={{ linha_temporal_valoresT|safe }};
+        const boxplotData = {{boxplot_data|safe }};
+
+        console.log(linhaTemporalLabelsT)
+        console.log(linhaTemporalValoresT)
+        
+        const tooltipCallback = context => {
+            const label = context.dataset.label || '';
+            const value = context.parsed.y;
+            const unidade = label.includes("Total") ? " L" : " m³/s";
+            return `${label}: ${value}${unidade}`;
+        };
+    
+        const commonZoomOptions = {
+           zoom: {
+      wheel: {
+        enabled: true,
+        speed: 0.01, // ↓↓↓ Lower = more precise zoom (default is 0.1)
+       mode:'y'
+      },
+      pinch: {
+        enabled: true,
+        speed: 0.01 // For touch devices, lower = finer zoom
+      },
+      mode: 'xy'  // or 'x' only
+    },
+    pan: {
+      enabled: true,
+      mode: 'xy',
+      speed: 1 
+    },
+    limits: {
+      x: { minRange: 1 },  // Optional: minimum range allowed
+      y: { minRange: 0.1 }
+    }
+        };
+    
+        const getScalesOptions = () => {
+    const isDark = document.body.classList.contains('dark-mode');
+    const color = isDark ? '#ffffff' : '#000000';
+    return {
+        x: {  // Add this block to change x-axis labels
+            beginAtZero:true,
+            ticks: { color: color }
+        },
+        y: {
+            beginAtZero: true,
+            position: 'left',
+            title: { display: true, text: 'Total (L)', color: color },
+            ticks: { color: color }
+        },
+        y1: {
+            beginAtZero: true,
+            position: 'right',
+            grid: { drawOnChartArea: true },
+            title: { display: true, text: 'Média (m³/s)', color: color },
+            ticks: { color: color }
+        }
+    };
+};
+
+    
+        const chartConfigs = [
+            {
+                id: 'yearlyChart',
+                config: {
+                    type: 'bar',
+                    data: {
+                        labels: years,
+                        datasets: [
+                            { type: 'bar', label: 'Total (L)', data: totals, backgroundColor: '#90e0ef', yAxisID: 'y', order: 2 },
+                            { type: 'line', label: 'Média (m³/s)', data: avgValues, borderColor: '#0077b6', fill: false, tension: 0.3, yAxisID: 'y1', order: 1 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: getScalesOptions(),
+                        plugins: {
+                            zoom: { zoom: commonZoomOptions.zoom },
+                            pan:{pan:commonZoomOptions.pan},
+                            title: { display: true, text: 'Medições Anuais' },
+                            tooltip: { mode: 'index', intersect: false, callbacks: { label: tooltipCallback } }
+                        }
+                    }
+                }
+            },
+            {
+                id: 'monthlyAvgChart',
+                config: {
+                    type: 'line',
+                    data: {
+                        labels: month_names,
+                        datasets: [{
+                            label: 'Média (m³/s)',
+                            data: monthAvg,
+                            borderColor: '#0096c7',
+                            backgroundColor: 'rgba(0,150,199,0.2)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Média (m³/s)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                            },
+                            x:{
+                                 beginAtZero: true,
+                                title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                            }
+                        },
+                        plugins: {
+                            zoom: { zoom: commonZoomOptions.zoom },
+                            pan:{pan:commonZoomOptions.pan},
+                            title: { display: true, text: 'Média Mensal' },
+                            tooltip: { mode: 'index', intersect: false }
+                        }
+                    }
+                }
+            },
+            {
+                id: 'monthlyTotalChart',
+                config: {
+                    type: 'bar',
+                    data: {
+                        labels: month_names,
+                        datasets: [
+                            { label: 'Total (L)', data: monthTotals, backgroundColor: '#90e0ef', yAxisID: 'y', order: 2 },
+                            { label: 'Média (m³/s)', data: monthAvg, type: 'line', borderColor: '#0077b6', backgroundColor: 'rgba(0,119,182,0.2)', fill: true, tension: 0.3, yAxisID: 'y1', order: 1 },
+                           
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: getScalesOptions(),
+                        plugins: {
+                            zoom: { zoom: commonZoomOptions.zoom },
+                            pan:{pan:commonZoomOptions.pan},
+                            title: { display: true, text: 'Total Mensal e Média Mensal' },
+                            tooltip: { mode: 'index', intersect: false, callbacks: { label: tooltipCallback } }
+                        }
+                    }
+                }
+            },
+
+            {
+                 id: "linhaDiariaChart",
+                 config:{
+                    type: 'line',
+    data: {
+        labels: linhaTemporalLabels,
+        datasets: [{
+            label: 'Caudal Médio Diário (m³/s)',
+            data: linhaTemporalValores,
+            fill: false,
+            borderColor: 'rgba(0, 123, 255, 0.8)',
+            backgroundColor: 'rgba(0, 123, 255, 0.3)',
+            tension: 0.3,
+            pointRadius: 1, 
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            zoom: {
+                zoom: {
+                    wheel: { 
+                        enabled: true ,
+                        speed:0.05
+
+                    },
+                    pinch: { enabled: true },
+                    mode: 'x',
+                     speed:0.05
+                },
+                pan: {
+                    enabled: true,
+                    mode: 'x',
+                    threshold: 1
+                }
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false
+            },
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    boxWidth: 20,
+                    padding: 10
+                }
+            },
+            title: {
+                display: true,
+                text: 'Gráfico de Linha Diário - {{ selected_year }}',
+                font: {
+                    size: 18
+                }
+            }
+        },
+        scales: {
+            x: {
+                title: { display: true, text: 'Data (Dia)' },
+                ticks: {
+                    maxTicksLimit: 15,
+                    autoSkip: true,
+                    maxRotation: 45,
+                    minRotation: 45
+                }
+            },
+            y: {
+                title: { display: true, text: 'Caudal (m³/s)' },
+                beginAtZero: true
+            }
+        }
+    }
+
+                 }
+
+            },
+             {
+                 id: "linhaDiariaChartT",
+                 config:{
+                    type: 'line',
+    data: {
+        labels: linhaTemporalLabelsT,
+        datasets: [{
+            label: 'Caudal (m³/s)',
+            data: linhaTemporalValoresT,
+            fill: false,
+            borderColor: 'rgba(0, 123, 255, 0.8)',
+            backgroundColor: 'rgba(0, 123, 255, 0.3)',
+            tension: 0,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            decimation: {
+    enabled: true,
+    algorithm: 'lttb', // Algoritmo mais preciso
+    samples: 2000 // Exibe 2000 pontos visíveis, mas mantém todos para zoom
+},
+            zoom: {
+                zoom: {
+                    wheel: { 
+                        enabled: true ,
+                        speed:0.04
+
+                    },
+                    pinch: { enabled: true },
+                    mode: 'x',
+                     speed:0.04
+                },
+                pan: {
+                    enabled: true,
+                    mode: 'x',
+                    threshold: 1
+                }
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false
+            },
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    boxWidth: 20,
+                    padding: 10
+                }
+            },
+            title: {
+                display: true,
+                text: 'Gráfico de Linha Completo',
+                font: {
+                    size: 18
+                }
+            }
+        },
+        scales: {
+            x: {
+        type: 'time',
+       time: {
+    parser: 'yyyy-MM-dd HH:mm:ss',
+    tooltipFormat: 'dd MMM yyyy HH:mm:ss',
+    displayFormats: {
+        second: 'HH:mm:ss',
+        minute: 'HH:mm',
+        hour: 'dd MMM HH:mm',
+        day: 'dd MMM'
+    }
+},
+        title: { display: true, text: 'Instante' },
+        ticks: {
+            maxTicksLimit: 15,
+            autoSkip: true,
+            maxRotation: 45,
+            minRotation: 45
+        }
+    },
+            y: {
+                title: { display: true, text: 'Caudal (m³/s)' },
+                beginAtZero: true
+            }
+        }
+    }
+
+                 }
+
+            },
+            
+        ];
+    
+        const chartInstances = {};
+        chartConfigs.forEach(cfg => {
+
+            const canvas = document.getElementById(cfg.id);
+    if (canvas) {
+        chartInstances[cfg.id] = new Chart(canvas.getContext('2d'), cfg.config);
+    }
+        });
+
+
+        function createBoxplotChart() {
+            if (!boxplotData || Object.keys(boxplotData).length === 0) {
+                // Hide the boxplot container if no data
+                document.querySelector('#boxplotChart').parentElement.style.display = 'none';
+                return;
+            }
+
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            const boxplotDatasets = [];
+            const outlierDatasets = [];
+            
+            // Prepare boxplot data
+            const boxData = [];
+            const outlierData = [];
+            
+            for (let month = 1; month <= 12; month++) {
+                if (boxplotData[month]) {
+                    const stats = boxplotData[month];
+                    boxData.push({
+                        x: months[month - 1],
+                        min: stats.min,
+                        q1: stats.q1,
+                        median: stats.median,
+                        mean:stats.mean,
+                        q3: stats.q3,
+                        max: stats.max
+                    });
+                    
+                    // Add outliers as scatter points
+                    stats.outliers.forEach(outlier => {
+                        outlierData.push({
+                            x: months[month - 1],
+                            y: outlier
+                        });
+                    });
+                } else {
+                    boxData.push(null);
+                }
+            }
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+
+            const boxplotConfig = {
+                type: 'boxplot',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Distribuição Mensal',
+                        data: boxData,
+                        backgroundColor: 'rgba(0, 119, 182, 0.3)',
+                        borderColor: '#0077b6',
+                        borderWidth: 2,
+                    
+                       
+                    },
+                        {
+        label: 'Outliers',
+        type: 'scatter',
+        data: outlierData,
+        backgroundColor: '#ef476f',
+        borderColor: '#ef476f',
+       
+           pointRadius: 7,
+  pointHoverRadius: 6,
+  hitRadius: 1, 
+        pointStyle: 'circle',
+        showLine: false
+    }
+                ]
+                },
+                options: {
+                    responsive: true,
+                     interaction: {
+    mode: 'nearest',
+    axis: 'xy',
+    intersect: true  // ← Required for precise intersection-based tooltip
+  },
+                    plugins: {
+
+                        
+                        title: {
+                            display: true,
+                            text: 'Distribuição Mensal de Caudal',
+                            color: textColor
+                        },
+                         tooltip: {
+      intersect: true, // ← Only show tooltip when pointer is on point
+      mode: 'nearest'
+    },
+                        legend: {
+                            
+                            labels: {
+                                color: textColor
+                            }
+                        },
+                        zoom: { zoom: commonZoomOptions.zoom },
+                        pan:{pan:commonZoomOptions.pan},
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês',
+                                color: textColor
+                            },
+                            ticks: { color: textColor }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal (m³/s)',
+                                color: textColor
+                            },
+                            ticks: { color: textColor },
+                            // max: 10  // Set max scale for flow measurements
+                        }
+                    }
+                }
+            };
+
+            try {
+                chartInstances['boxplotChart'] = new Chart(
+                    document.getElementById('boxplotChart').getContext('2d'), 
+                    boxplotConfig
+                );
+            } catch (error) {
+                console.log('Boxplot plugin not available, creating alternative visualization');
+                createAlternativeBoxplot(boxData, months);
+            }
+        }
+
+        function createAlternativeBoxplot(boxData, months) {
+            const medianData = [];
+            const meanData=[];
+            const q1Data = [];
+            const q3Data = [];
+            const minData = [];
+            const maxData = [];
+            const scatterData = [];
+            
+            boxData.forEach((data, index) => {
+                if (data) {
+                    medianData.push(data.median);
+                    meanData.push(data.mean);
+                    q1Data.push(data.q1);
+                    q3Data.push(data.q3);
+                    minData.push(data.min);
+                    maxData.push(data.max);
+                    
+                    const monthName = months[index];
+                    if (boxplotData[index + 1] && boxplotData[index + 1].outliers) {
+                        boxplotData[index + 1].outliers.forEach(outlier => {
+                            scatterData.push({x: monthName, y: outlier});
+                        });
+                    }
+                } else {
+                    medianData.push(null);
+                    meanData.push(null);
+                    q1Data.push(null);
+                    q3Data.push(null);
+                    minData.push(null);
+                    maxData.push(null);
+                }
+            });
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+
+            const alternativeConfig = {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Máximo',
+                            data: maxData,
+                            borderColor: '#ef476f',
+                            backgroundColor: 'rgba(239, 71, 111, 0.1)',
+                            borderWidth: 1,
+                            borderDash: [2, 2],
+                            pointRadius: 2,
+                            pointStyle: 'triangle'
+                        },
+                        {
+                            label: 'Q3 (75%)',
+                            data: q3Data,
+                            borderColor: '#90e0ef',
+                            backgroundColor: 'rgba(144, 224, 239, 0.3)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointStyle: 'rect'
+                        },
+                        {
+                            label: 'Mediana (50%)',
+                            data: medianData,
+                            borderColor: '#0077b6',
+                            backgroundColor: 'rgba(0, 119, 182, 0.5)',
+                            borderWidth: 4,
+                            pointRadius: 5,
+                            pointStyle: 'circle'
+                        },
+                         {
+                            label: 'Mean',
+                            data: meanData,
+                            borderColor: '#0077b6',
+                            backgroundColor: 'rgba(0, 119, 182, 0.5)',
+                            borderWidth: 4,
+                            pointRadius: 5,
+                            pointStyle: 'circle'
+                        },
+                        {
+                            label: 'Q1 (25%)',
+                            data: q1Data,
+                            borderColor: '#caf0f8',
+                            backgroundColor: 'rgba(202, 240, 248, 0.3)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointStyle: 'rect'
+                        },
+                        {
+                            label: 'Mínimo',
+                            data: minData,
+                            borderColor: '#023e8a',
+                            backgroundColor: 'rgba(2, 62, 138, 0.1)',
+                            borderWidth: 1,
+                            borderDash: [2, 2],
+                            pointRadius: 2,
+                            pointStyle: 'triangle'
+                        },
+                        {
+                            label: 'Outliers',
+                            data: scatterData,
+                            type: 'scatter',
+                            borderColor: '#ef476f',
+                            backgroundColor: '#ef476f',
+                            pointRadius: 4,
+                            pointStyle: 'circle',
+                            showLine: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                      interaction: {
+    mode: 'nearest',
+    axis: 'xy',
+    intersect: true  // ← Required for precise intersection-based tooltip
+  },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Distribuição Estatística Mensal de Caudal',
+                            color: textColor
+                        },
+                         tooltip: {
+      intersect: true, // ← Only show tooltip when pointer is on point
+      mode: 'nearest'
+    },
+                        legend: {
+                            labels: {
+                                color: textColor,
+                                usePointStyle: true
+                            }
+                        },
+                        zoom: { zoom: commonZoomOptions.zoom },
+                        pan:{pan:commonZoomOptions.pan},
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês',
+                                color: textColor
+                            },
+                            ticks: { color: textColor }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal (m³/s)',
+                                color: textColor
+                            },
+                            ticks: { color: textColor },
+                            // max: 10  // 10 m³/s limit for better visibility
+                        }
+                    }
+                }
+            };
+
+            chartInstances['boxplotChart'] = new Chart(
+                document.getElementById('boxplotChart').getContext('2d'), 
+                alternativeConfig
+            );
+        }
+      // Create the new charts
+        createBoxplotChart();
+    
+        function resetZoom(chartId) {
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].resetZoom();
+            }
+        }
+    
+        function updateChartsTheme() {
+            chartConfigs.forEach(cfg => {
+                const chart = chartInstances[cfg.id];
+                if (chart) {
+                    chart.options.scales = getScalesOptions();
+                    chart.update();
+                }
+            });
+        }
+
+         // Update boxplot and daily 
+            if (chartInstances['boxplotChart']) {
+                const isDark = document.body.classList.contains('dark-mode');
+                const textColor = isDark ? '#ffffff' : '#000000';
+                
+                chartInstances['boxplotChart'].options.plugins.title.color = textColor;
+                chartInstances['boxplotChart'].options.plugins.legend.labels.color = textColor;
+                chartInstances['boxplotChart'].options.scales.x.title.color = textColor;
+                chartInstances['boxplotChart'].options.scales.x.ticks.color = textColor;
+                chartInstances['boxplotChart'].options.scales.y.title.color = textColor;
+                chartInstances['boxplotChart'].options.scales.y.ticks.color = textColor;
+                chartInstances['boxplotChart'].update();
+            }
+            
+            
+
+        document.getElementById("ponto_medicao").addEventListener("change", function ()  {
+                const pontoId = this.value;
+                const seriesSelection = document.getElementById("series-selection");
+                const comparisonYears = document.getElementById("comparison-years");
+                
+                if (!pontoId) {
+                    seriesSelection.style.display = "none";
+                    comparisonYears.style.display = "none";
+                    return;
+                }
+
+                fetch(`/caudais/obter_series_por_ponto/?ponto_id=${pontoId}`)
+                    .then(response => response.json())
+                    .then(series => {
+                        populateSeriesCheckboxes(series);
+                        seriesSelection.style.display = "block";
+                    })
+                    .catch(error => {
+                        console.error('Erro ao buscar séries:', error);
+                    });
+            });
+  
+
+        function populateSeriesCheckboxes(series) {
+            const container = document.getElementById("series-checkboxes");
+            container.innerHTML = "";
+
+            series.forEach(serie => {
+                const div = document.createElement("div");
+                div.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9;";
+                
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.id = `serie_${serie.id}`;
+                checkbox.value = serie.id;
+                checkbox.name = "selected_series";
+                checkbox.addEventListener("change", handleSeriesSelection);
+                
+                const label = document.createElement("label");
+                label.htmlFor = `serie_${serie.id}`;
+                label.textContent = serie.nome;
+                label.style.cursor = "pointer";
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
+        function handleSeriesSelection() {
+            const selectedSeries = Array.from(document.querySelectorAll('input[name="selected_series"]:checked'));
+            const comparisonYears = document.getElementById("comparison-years");
+            
+            if (selectedSeries.length > 0) {
+                populateYearSelections(selectedSeries);
+                comparisonYears.style.display = "block";
+            } else {
+                comparisonYears.style.display = "none";
+            }
+        }
+
+        function populateYearSelections(selectedSeries) {
+            const container = document.getElementById("comparison-years");
+            container.innerHTML = "<h4 style='margin: 10px 0;'>Selecione até 3 anos para cada série:</h4>";
+
+            selectedSeries.forEach(serieCheckbox => {
+                const serieId = serieCheckbox.value;
+                const serieName = serieCheckbox.nextElementSibling.textContent;
+                
+                const serieDiv = document.createElement("div");
+                serieDiv.style.cssText = "margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; background: white;";
+                
+                const title = document.createElement("h5");
+                title.textContent = `${serieName}:`;
+                title.style.margin = "0 0 8px 0";
+                serieDiv.appendChild(title);
+                
+                const yearsDiv = document.createElement("div");
+                yearsDiv.id = `years_${serieId}`;
+                yearsDiv.style.cssText = "display: flex; flex-wrap: wrap; gap: 8px;";
+                serieDiv.appendChild(yearsDiv);
+                
+                container.appendChild(serieDiv);
+                
+                // Fetch years for this series
+                fetchYearsForSeries(serieId, yearsDiv);
+            });
+        }
+
+        function fetchYearsForSeries(serieId, container) {
+            fetch(`/caudais/get_anos_por_serie/?serie_id=${serieId}`)
+                .then(response => response.json())
+                .then(data => {
+                    container.innerHTML = "";
+                    if (data.anos.length > 0) {
+                        data.anos.forEach(ano => {
+                            const div = document.createElement("div");
+                            div.style.cssText = "display: flex; align-items: center; gap: 5px;";
+                            
+                            const checkbox = document.createElement("input");
+                            checkbox.type = "checkbox";
+                            checkbox.id = `year_${serieId}_${ano}`;
+                            checkbox.value = ano;
+                            checkbox.name = `years_${serieId}`;
+                            checkbox.addEventListener("change", () => limitYearSelection(serieId));
+                            
+                            const label = document.createElement("label");
+                            label.htmlFor = `year_${serieId}_${ano}`;
+                            label.textContent = ano;
+                            label.style.cursor = "pointer";
+                            
+                            div.appendChild(checkbox);
+                            div.appendChild(label);
+                            container.appendChild(div);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar anos:', error);
+                });
+        }
+
+        function limitYearSelection(serieId) {
+            const checkboxes = document.querySelectorAll(`input[name="years_${serieId}"]`);
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            
+            if (checked.length >= 3) {
+                Array.from(checkboxes).forEach(cb => {
+                    if (!cb.checked) cb.disabled = true;
+                });
+            } else {
+                Array.from(checkboxes).forEach(cb => {
+                    cb.disabled = false;
+                });
+            }
+        }
+
+        document.getElementById('data_type').addEventListener('change', function () {
+            const reconMethodField = document.getElementById('recon_method');
+            const label = document.querySelector('label[for="recon_method"]');
+            const isVisible = this.value === 'reconstruido';
+            reconMethodField.style.display = isVisible ? '' : 'none';
+            label.style.display = isVisible ? '' : 'none';
+        });
+    
+        function toggleMenu() {
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        }
+    
+        document.addEventListener('click', function(event) {
+            const toggle = document.querySelector('.menu-toggle');
+            const menu = document.getElementById('dropdownMenu');
+            if (!toggle.contains(event.target) && !menu.contains(event.target)) {
+                menu.style.display = 'none';
+            }
+        });
+        if (localStorage.getItem('modoEscuro') === 'ativo') {
+    document.body.classList.add('dark-mode');
+    updateChartsTheme();
+}
+
+function toggleTheme() {
+    document.body.classList.toggle("dark-mode");
+    if (document.body.classList.contains('dark-mode')) {
+        localStorage.setItem('modoEscuro', 'ativo');
+    } else {
+        localStorage.setItem('modoEscuro', 'inativo');
+    }
+    updateChartsTheme();
+}
+function showLoading() {
+    document.getElementById('loading-spinner').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading-spinner').style.display = 'none';
+}
+window.onload = hideLoading;
+function calcularEstatisticas() {
+  const start = new Date(document.getElementById("startTime").value);
+  const end = new Date(document.getElementById("endTime").value);
+  const dados = linhaTemporalLabelsT.map((ts, i) => {
+    const t = new Date(ts);
+    return (t >= start && t <= end) ? linhaTemporalValoresT[i] : null;
+  }).filter(v => v !== null && !isNaN(v));
+
+  if (dados.length === 0) {
+    document.getElementById("resultadoEstatisticas").innerText = "Sem dados no intervalo.";
+    return;
+  }
+
+  const media = dados.reduce((a, b) => a + b, 0) / dados.length;
+  const max = Math.max(...dados);
+  const min = Math.min(...dados);
+  const variancia = dados.reduce((a, b) => a + Math.pow(b - media, 2), 0) / dados.length;
+  const desvioPadrao = Math.sqrt(variancia);
+  const mediana = dados.sort((a, b) => a - b)[Math.floor(dados.length / 2)];
+
+ document.getElementById("resultadoEstatisticas").innerHTML = `
+  <div style="
+      background-color: #f8f9fa;
+      border: 1px solid #ced4da;
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      margin-top: 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      font-family: 'Segoe UI', sans-serif;
+      color: #343a40;
+      max-width: 400px;
+  ">
+    <h4 style="margin-bottom: 1rem; color: #007bff;">📊 Estatísticas do Intervalo</h4>
+    <p><strong>Média:</strong> ${media.toFixed(3)} m³/s</p>
+    <p><strong>Máximo:</strong> ${max.toFixed(3)} m³/s</p>
+    <p><strong>Mínimo:</strong> ${min.toFixed(3)} m³/s</p>
+    <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toFixed(3)} m³/s</p>
+    <p><strong>Variância:</strong> ${variancia.toFixed(3)} (m³/s)²</p>
+    <p><strong>Mediana:</strong> ${mediana.toFixed(3)} m³/s</p>
+  </div>
+`;
+}
+
+
+function submitComparison() {
+    const selectedSeries = Array.from(document.querySelectorAll('input[name="selected_series"]:checked'));
+    
+    if (selectedSeries.length === 0) {
+        alert('Por favor, selecione pelo menos uma série para comparação.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('comparison_mode', 'true');
+    formData.append('ponto_medicao', document.getElementById('ponto_medicao').value);
+    formData.append('data_type', document.getElementById('data_type').value);
+    formData.append('recon_method', document.getElementById('recon_method').value);
+
+    selectedSeries.forEach(serieCheckbox => {
+        const serieId = serieCheckbox.value;
+        const selectedYears = Array.from(document.querySelectorAll(`input[name="years_${serieId}"]:checked`));
+        
+        formData.append('selected_series', serieId);
+        selectedYears.forEach(yearCheckbox => {
+            formData.append(`years_${serieId}`, yearCheckbox.value);
+        });
+    });
+
+    showLoading();
+    
+    fetch('/caudais/dashboard_comparison/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        createComparisonChart(data);
+        document.getElementById('comparison-chart').style.display = 'block';
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Erro:', error);
+        alert('Erro ao carregar dados de comparação.');
+    });
+}
+
+function createComparisonChart(data) {
+    const canvas = document.getElementById('comparisonChart');
+    
+    // Destroy existing chart if it exists
+    if (chartInstances['comparisonChart']) {
+        chartInstances['comparisonChart'].destroy();
+    }
+
+    const colors = [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 205, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+        'rgba(255, 99, 255, 0.8)'
+    ];
+
+    const datasets = data.datasets.map((dataset, index) => ({
+        label: dataset.label,
+        data: dataset.data,
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length].replace('0.8', '0.2'),
+        fill: false,
+        tension: 0.3,
+        pointRadius: 1,
+        borderWidth: 2
+    }));
+
+    const config = {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                zoom: {
+                    zoom: {
+                        wheel: { 
+                            enabled: true,
+                            speed: 0.05
+                        },
+                        pinch: { enabled: true },
+                        mode: 'x',
+                        speed: 0.05
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                        threshold: 1
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 20,
+                        padding: 10
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Comparação de Séries',
+                    font: {
+                        size: 18
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        parser: 'yyyy-MM-dd HH:mm:ss',
+                        tooltipFormat: 'dd MMM yyyy HH:mm:ss',
+                        displayFormats: {
+                            second: 'HH:mm:ss',
+                            minute: 'HH:mm',
+                            hour: 'dd MMM HH:mm',
+                            day: 'dd MMM yyyy'
+                        }
+                    },
+                    title: { display: true, text: 'Data/Hora' },
+                    ticks: {
+                        maxTicksLimit: 15,
+                        autoSkip: true,
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    title: { display: true, text: 'Caudal (m³/s)' },
+                    beginAtZero: true
+                }
+            }
+        }
+    };
+
+    chartInstances['comparisonChart'] = new Chart(canvas.getContext('2d'), config);
+}
+
+function exportarExcel() {
+    showLoading();
+    const serie = document.getElementById('serie_id').value;
+const tipo = document.getElementById('data_type').value;
+const metodo = document.getElementById('recon_method').value;
+const url = `/caudais/exportar_excel/?serie_id=${serie}&data_type=${tipo}&recon_method=${metodo}`;
+
+
+    const iframe = document.getElementById('download_iframe');
+    iframe.src = url;
+
+    setTimeout(hideLoading, 16000); 
+}
+    </script>
+    <iframe id="download_iframe" style="display: none;"></iframe>
+
+</body>
+</html>

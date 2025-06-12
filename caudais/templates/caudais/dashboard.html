@@ -1,0 +1,3806 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard de Medições</title>
+
+      <!-- Font Awesome atualizado -->
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+      <!-- Chart.js e plugin de zoom -->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@sgratzl/chartjs-chart-boxplot"></script>
+  
+      <style>
+          :root {
+              --azul-primario: #0077b6;
+              --azul-claro: #caf0f8;
+              --azul-medio: #90e0ef;
+              --cinza-claro: #f1f1f1;
+              --cinza-escuro: #333;
+          }
+  
+          body {
+              font-family: 'Segoe UI', sans-serif;
+              background-color: #f8f9fa;
+              color: var(--cinza-escuro);
+              margin: 0;
+              padding: 20px;
+          }
+  
+          .dark-mode {
+              background-color: #1a1a1a;
+              color: #f1f1f1;
+          }
+  
+          .dark-mode .chart-container,
+          .dark-mode form,
+          .dark-mode table.small-table,
+          .dark-mode .dropdown-menu {
+              background-color: #2c2c2c;
+              color: #f1f1f1;
+          }
+  
+          .dark-mode table.small-table th {
+              background-color: #444;
+              color: #fff;
+          }
+  
+          .dark-mode .dropdown-menu a {
+              color: #f1f1f1;
+          }
+  
+          h1 {
+              text-align: center;
+              color: var(--azul-primario);
+              margin-bottom: 40px;
+          }
+  
+          form {
+              display: flex;
+              flex-wrap: wrap;
+              justify-content: center;
+              align-items: flex-end;
+              gap: 15px;
+              margin-bottom: 40px;
+              background: white;
+              padding: 15px 20px;
+              border-radius: 10px;
+              box-shadow: 0px 2px 5px rgba(0, 119, 182, 0.1);
+          }
+  
+          .form-group {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+              min-height: 70px;
+              justify-content: flex-end;
+          }
+  
+          .form-group.checkbox-group {
+              min-height: 50px;
+              justify-content: center;
+          }
+  
+          .form-group.series-group {
+              min-width: 200px;
+              max-width: 250px;
+          }
+  
+          label {
+              font-weight: 500;
+              margin-bottom: 5px;
+              font-size: 14px;
+              color: var(--cinza-escuro);
+          }
+  
+          select, button, input[type="checkbox"] {
+              padding: 8px 12px;
+              border: 1px solid #ccc;
+              border-radius: 5px;
+              font-size: 14px;
+              min-height: 36px;
+              box-sizing: border-box;
+          }
+  
+          input[type="checkbox"] {
+              width: 18px;
+              height: 18px;
+              padding: 0;
+              margin: 0;
+              min-height: 18px;
+              cursor: pointer;
+          }
+  
+          select {
+              min-width: 150px;
+          }
+  
+          .series-container {
+              width: 100%;
+          }
+  
+          #series_checkboxes {
+              max-height: 120px;
+              overflow-y: auto;
+              border: 1px solid #ccc;
+              padding: 8px;
+              border-radius: 5px;
+              background: #f9f9f9;
+              font-size: 13px;
+              min-height: 36px;
+              box-sizing: border-box;
+          }
+  
+          #series_checkboxes div {
+              margin-bottom: 3px;
+              display: flex;
+              align-items: center;
+          }
+  
+          #series_checkboxes input[type="checkbox"] {
+              width: 14px;
+              height: 14px;
+              margin-right: 6px;
+          }
+  
+          #series_checkboxes label {
+              margin: 0;
+              font-size: 13px;
+              cursor: pointer;
+              font-weight: normal;
+          }
+  
+          button {
+              background-color: var(--azul-primario);
+              color: white;
+              transition: background-color 0.3s ease;
+              cursor: pointer;
+              border: none;
+          }
+  
+          button:hover {
+              background-color: #023e8a;
+          }
+  
+          .chart-container {
+              background: white;
+              border-radius: 12px;
+              padding: 20px;
+              box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+              margin-bottom: 30px;
+              text-align: center;
+              max-width: 1200px;
+              margin-left: auto;
+              margin-right: auto;
+          }
+  
+          canvas {
+              width: 100% !important;
+              height: 350px !important;
+              max-height: 350px !important;
+              margin: auto;
+          }
+  
+          .chart-container h2 {
+              margin-bottom: 20px;
+              color: var(--azul-primario);
+              font-size: 18px;
+          }
+  
+          table.small-table {
+              width: 60%;
+              margin: 0 auto;
+              font-size: 13px;
+              border-collapse: collapse;
+              background-color: white;
+              box-shadow: 0px 1px 5px rgba(0,0,0,0.05);
+              border-radius: 10px;
+              overflow: hidden;
+          }
+  
+          table.small-table th {
+              background-color: var(--azul-medio);
+              color: #000;
+          }
+  
+          table.small-table td, table.small-table th {
+              padding: 8px 10px;
+              border: 1px solid #e0e0e0;
+          }
+  
+          .chart-container button {
+              margin-top: 15px;
+              background-color: var(--azul-medio);
+              color: #000;
+          }
+  
+          .chart-container button:hover {
+              background-color: var(--azul-claro);
+          }
+  
+          .menu-toggle {
+              position: fixed;
+              top: 20px;
+              left: 30px;
+              font-size: 23px;
+              cursor: pointer;
+              z-index: 2000;
+              
+          }
+  
+          .menu-toggle i {
+              color: var(--cinza-escuro);
+          }
+  
+          .dark-mode .menu-toggle {
+              background-color: #2c2c2c;
+          }
+  
+          .dark-mode .menu-toggle i {
+              color: #f1f1f1;
+          }
+  
+          .dropdown-menu {
+              display: none;
+              position: fixed;
+              top: 60px;
+              left: 30px;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+              z-index: 1000;
+              min-width: 200px;
+          }
+  
+          .dropdown-menu a {
+              display: block;
+              padding: 10px 15px;
+              color: var(--cinza-escuro);
+              text-decoration: none;
+              border-bottom: 1px solid #eee;
+          }
+  
+          .dropdown-menu a:hover {
+              background-color: var(--azul-claro);
+          }
+
+          .comparison-table {
+              width: 95%;
+              font-size: 12px;
+              table-layout: auto;
+          }
+
+          .comparison-table th {
+              font-size: 11px;
+              max-width: 200px;
+              word-wrap: break-word;
+              padding: 6px 8px;
+              text-align: center;
+          }
+
+          .comparison-table td {
+              text-align: center;
+              padding: 6px 8px;
+          }
+
+          .percentage-change {
+              font-weight: bold;
+              text-align: center;
+          }
+
+          .percentage-positive {
+              color: #28a745;
+              background-color: rgba(40, 167, 69, 0.1);
+          }
+
+          .percentage-negative {
+              color: #dc3545;
+              background-color: rgba(220, 53, 69, 0.1);
+          }
+
+          .percentage-neutral {
+              color: #6c757d;
+              background-color: rgba(108, 117, 125, 0.1);
+          }
+
+          #comparison_years_container {
+              background: #f9f9f9;
+              padding: 10px;
+              border-radius: 5px;
+              border: 1px solid #e0e0e0;
+          }
+
+          #series_years_selectors .form-group {
+              margin-bottom: 15px;
+              padding: 10px;
+              border: 1px solid #e0e0e0;
+              border-radius: 5px;
+              background-color: #f9f9f9;
+          }
+
+          #series_years_selectors label {
+              font-size: 14px;
+              font-weight: 600;
+              margin-bottom: 8px;
+              color: var(--cinza-escuro);
+              display: block;
+          }
+
+          .years-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+              gap: 8px;
+              max-height: 120px;
+              overflow-y: auto;
+              padding: 5px;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              background-color: #fff;
+          }
+
+          .year-checkbox-item {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              padding: 2px;
+          }
+
+          .year-checkbox-item input[type="checkbox"] {
+              margin: 0;
+              width: 14px;
+              height: 14px;
+          }
+
+          .year-checkbox-item label {
+              font-size: 12px;
+              margin: 0;
+              cursor: pointer;
+              font-weight: normal;
+              color: var(--cinza-escuro);
+          }
+
+          #year_limit_warning {
+              background-color: rgba(220, 53, 69, 0.1);
+              padding: 8px 12px;
+              border-radius: 4px;
+              border-left: 3px solid #dc3545;
+          }
+
+          .dark-mode #series_years_selectors .form-group {
+              background-color: #3c3c3c;
+              border-color: #555;
+          }
+
+          .dark-mode #series_years_selectors label {
+              color: #f1f1f1;
+          }
+
+          .dark-mode .years-grid {
+              background-color: #2c2c2c;
+              border-color: #555;
+          }
+
+          .dark-mode .year-checkbox-item label {
+              color: #f1f1f1;
+          }
+
+          .dark-mode .year-checkbox-item label {
+              color: #f1f1f1;
+          }
+
+          .auto-fill-info {
+              margin-bottom: 10px;
+              padding: 8px;
+              background-color: #e3f2fd;
+              border-radius: 4px;
+              font-size: 13px;
+              color: #1565c0;
+          }
+
+          .dark-mode .auto-fill-info {
+              background-color: #2c3e50;
+              color: #74b9ff;
+          }
+
+          @keyframes slideIn {
+              from {
+                  transform: translateX(100%);
+                  opacity: 0;
+              }
+              to {
+                  transform: translateX(0);
+                  opacity: 1;
+              }
+          }
+
+          @keyframes slideOut {
+              from {
+                  transform: translateX(0);
+                  opacity: 1;
+              }
+              to {
+                  transform: translateX(100%);
+                  opacity: 0;
+              }
+          }
+      </style>
+    {% load custom_filters %}
+</head>
+<body>
+    <h1>Dashboard de Medições</h1>
+
+    <!-- User Info -->
+    <div style="text-align: center; margin-bottom: 20px; color: var(--azul-primario);">
+        <i class="fas fa-user"></i> Bem-vindo, <strong>{{ request.user.username }}</strong>
+        {% if request.user.first_name %}
+            ({{ request.user.first_name }} {{ request.user.last_name }})
+        {% endif %}
+    </div>
+
+    <!-- Botão de Menu -->
+    <div class="menu-toggle" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+    </div>
+    <div id="loading-spinner" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); font-size:24px; color:#0077b6;">
+        <i class="fas fa-spinner fa-spin"></i> Carregando...
+    </div>
+
+    <!-- Menu Dropdown -->
+    <div class="dropdown-menu" id="dropdownMenu">
+        <a href="{% url 'caudais:upload_novo_ponto' %}"><i class="fas fa-upload"></i> Upload de Medições</a>
+        <a href="#" onclick="exportarExcel()"><i class="fas fa-file-excel"></i> Exportar para Excel</a>
+        <a href="#" onclick="toggleTheme()"><i class="fas fa-adjust"></i> Alternar Modo Claro/Escuro</a>
+        <a href="{% url 'autenticacao:logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+
+
+    <!-- FORMULÁRIO -->
+
+    <form action="{% url 'caudais:dashboard' %}" method="get" onsubmit="showLoading()">
+        <div class="form-group">
+            <label for="ponto_medicao">Ponto:</label>
+            <select name="ponto_medicao" id="ponto_medicao">
+                <option value="">Selecione</option>
+                {% for ponto in pontos_medicao %}
+                    <option value="{{ ponto.id }}" {% if ponto.id == selected_ponto_medicao.id %}selected{% endif %}>
+                        {{ ponto.regiao.nome }} - {{ ponto.regiao.localidade }} : P{{ ponto.id }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <label for="comparison_mode">Modo Comparação:</label>
+            <input type="checkbox" name="comparison_mode" id="comparison_mode" value="true" {% if comparison_mode %}checked{% endif %}>
+        </div>
+
+        <div class="form-group series-group">
+            <div id="single_serie_container" class="series-container" {% if comparison_mode %}style="display:none;"{% endif %}>
+                <label for="serie_id">Série:</label>
+                <select name="serie_id" id="serie_id">
+                    <option value="">Selecione um ponto primeiro</option>
+                    {% if selected_series and selected_series|length == 1 %}
+                        <option value="{{ selected_series.0.id }}" selected>{{ selected_series.0.nome }}</option>
+                    {% endif %}
+                </select>
+            </div>
+
+            <div id="multiple_series_container" class="series-container" {% if not comparison_mode %}style="display:none;"{% endif %}>
+                <label>Séries para Comparar:</label>
+                <div id="series_checkboxes">
+                    <p style="color: #666; font-style: italic; margin: 0; font-size: 12px;">Selecione um ponto primeiro</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="data_type">Tipo:</label>
+            <select name="data_type" id="data_type">
+                <option value="raw" {% if data_type == 'raw' %}selected{% endif %}>Não Processados</option>
+                <option value="normalized" {% if data_type == 'normalized' %}selected{% endif %}>Normalizados</option>
+                <option value="reconstruido" {% if data_type == 'reconstruido' %}selected{% endif %}>Reconstruídos</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="recon_method_group" {% if data_type != 'reconstruido' %}style="display:none;"{% endif %}>
+            <label for="recon_method">Método:</label>
+            <select name="recon_method" id="recon_method">
+                <option value="jq" {% if recon_method == 'jq' %}selected{% endif %}>JQ</option>
+                <option value="tbats" {% if recon_method == 'tbats' %}selected{% endif %}>TBATS</option>
+            </select>
+        </div>
+
+        <!-- Single series year selector -->
+        <div class="form-group" id="single_year_group" {% if comparison_mode %}style="display:none;"{% endif %}>
+            <label for="year">Ano:</label>
+            <select name="year" id="year">
+                {% for year in all_years %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Per-series year selectors for comparison mode -->
+        <div id="comparison_years_container" {% if not comparison_mode %}style="display:none;"{% endif %}>
+            <div id="series_years_selectors">
+            </div>
+            <div id="year_limit_warning" style="display:none; color: #dc3545; font-size: 12px; margin-top: 5px;">
+                <i class="fas fa-exclamation-triangle"></i> Máximo de 3 anos diferentes podem ser selecionados em todos os intervalos.
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit">Filtrar</button>
+        </div>
+    </form>
+
+    <!-- CHARTS -->
+    <div class="chart-container">
+        <h2>Evolução Anual de Caudais</h2>
+        <canvas id="yearlyChart"></canvas>
+        <button onclick="resetZoom('yearlyChart')">Redefinir Zoom</button>
+    </div>
+
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Caudal Médio por Mês - Comparação
+            {% else %}
+                Caudal Médio por Mês - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+        <canvas id="monthlyAvgChart"></canvas>
+        <button onclick="resetZoom('monthlyAvgChart')">Redefinir Zoom</button>
+    </div>
+
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Volume Total Mensal - Comparação
+            {% else %}
+                Volume Total Mensal - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+        <canvas id="monthlyTotalChart"></canvas>
+        <button onclick="resetZoom('monthlyTotalChart')">Redefinir Zoom</button>
+    </div>
+
+    <!-- Interactive Boxplot Chart -->
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Distribuição Mensal de Caudal - Comparação
+            {% else %}
+                Distribuição Mensal de Caudal - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+        <canvas id="boxplotChart"></canvas>
+        <button onclick="resetZoom('boxplotChart')">Redefinir Zoom</button>
+    </div>
+
+    <!-- Daily Line Chart -->
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Evolução Diária de Caudal - Comparação
+            {% else %}
+                Evolução Diária de Caudal - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+        <canvas id="dailyLineChart"></canvas>
+        <button onclick="resetZoom('dailyLineChart')">Redefinir Zoom</button>
+    </div>
+
+    <!-- Complete Line Charts for Normalized/Reconstructed Data -->
+    {% if data_type == 'normalized' or data_type == 'reconstruido' %}
+    <div class="chart-container">
+        <h2>Gráfico de Linha Completo - Todos os Instantes</h2>
+        <canvas id="linhaDiariaChartT" height="100"></canvas>
+        <button onclick="resetZoom('linhaDiariaChartT')">Redefinir Zoom</button>
+        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 15px; align-items: end;">
+            <div>
+                <label for="startDate" style="display: block; margin-bottom: 5px;">Data Início:</label>
+                <input type="date" id="startDate" style="margin-bottom: 5px;">
+                <input type="time" id="startTime" placeholder="HH:MM (opcional)" style="margin-left: 5px;">
+            </div>
+            <div>
+                <label for="endDate" style="display: block; margin-bottom: 5px;">Data Fim:</label>
+                <input type="date" id="endDate" style="margin-bottom: 5px;">
+                <input type="time" id="endTime" placeholder="HH:MM (opcional)" style="margin-left: 5px;">
+            </div>
+            <div>
+                <button onclick="calcularEstatisticas()" style="padding: 8px 16px;">Calcular Estatísticas</button>
+                <button onclick="autoFillDates()" style="padding: 8px 16px; margin-left: 5px; background-color: #6c757d;">Auto-preencher</button>
+            </div>
+        </div>
+        <div id="resultadoEstatisticas"></div>
+    </div>
+
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Gráfico de Linha Diário - Comparação
+            {% else %}
+                Gráfico de Linha Diário - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+        <canvas id="linhaDiariaChart" height="100"></canvas>
+        <button onclick="resetZoom('linhaDiariaChart')">Redefinir Zoom</button>
+    </div>
+    {% endif %}
+
+    <iframe id="download_iframe" style="display: none;"></iframe>
+
+    {% if data_type == 'raw' %}
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Contagem Mensal - Comparação
+            {% else %}
+                Contagem Mensal - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+        
+        {% if comparison_mode and selected_series|length > 1 %}
+            <!-- Comparison mode table - populated by JavaScript -->
+            <table class="small-table comparison-table" id="comparison-count-table">
+                <thead id="comparison-count-header">
+                    <!-- Headers will be populated by JavaScript -->
+                </thead>
+                <tbody id="comparison-count-body">
+                    <!-- Data will be populated by JavaScript -->
+                </tbody>
+            </table>
+        {% else %}
+            <!-- Single series mode table -->
+            <table class="small-table">
+                <thead>
+                    <tr>
+                        <th>Mês</th>
+                        <th>Contagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for label, count in month_names|zip_lists:month_counts %}
+                    <tr>
+                        <td>{{ label }}</td>
+                        <td>{{ count }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2">Nenhuma contagem encontrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- JSON Data for JavaScript -->
+    {{ comparison_mode|json_script:"comparison-mode" }}
+    {{ series_data|json_script:"series-data" }}
+    {{ series_all_years|json_script:"series-all-years" }}
+    {{ years|json_script:"years" }}
+    {{ counts|json_script:"counts" }}
+    {{ totals|json_script:"totals" }}
+    {{ avg_values|json_script:"avg-values" }}
+    {{ month_labels|json_script:"month-labels" }}
+    {{ month_counts|json_script:"month-counts" }}
+    {{ month_avg|json_script:"month-avg" }}
+    {{ month_totals|json_script:"month-totals" }}
+    {{ selected_serie_ids|json_script:"selected-serie-ids" }}
+    {{ boxplot_data|json_script:"boxplot-data" }}
+    {{ line_chart_data|json_script:"line-chart-data" }}
+    {{ comparison_boxplot_data|json_script:"comparison-boxplot-data" }}
+    {{ comparison_line_chart_data|json_script:"comparison-line-chart-data" }}
+    {{ linha_temporal_labels|json_script:"linha-temporal-labels" }}
+    {{ linha_temporal_valores|json_script:"linha-temporal-valores" }}
+    {{ linha_temporal_labelsT|json_script:"linha-temporal-labelsT" }}
+    {{ linha_temporal_valoresT|json_script:"linha-temporal-valoresT" }}
+
+    <!-- SCRIPTS -->
+    <script>
+        const comparisonMode = JSON.parse(document.getElementById('comparison-mode').textContent || 'false');
+        const seriesData = JSON.parse(document.getElementById('series-data').textContent || '{}');
+        const seriesAllYears = JSON.parse(document.getElementById('series-all-years').textContent || '{}');
+        
+        
+        let loadedSeriesData = {};
+        let cachedPointSeries = {}; 
+        let isLoadingSeries = false; 
+        
+        if (Object.keys(seriesAllYears).length > 0) {
+            Object.keys(seriesAllYears).forEach(serieId => {
+                const years = seriesAllYears[serieId];
+                if (seriesData[serieId]) {
+                    loadedSeriesData[serieId] = {
+                        id: parseInt(serieId),
+                        nome: seriesData[serieId].serie ? seriesData[serieId].serie.nome : `Serie ${serieId}`,
+                        years: years,
+                        latest_year: Math.max(...years),
+                        total_years: years.length
+                    };
+                }
+            });
+        }
+
+        const years = JSON.parse(document.getElementById('years').textContent || '[]');
+        const counts = JSON.parse(document.getElementById('counts').textContent || '[]');
+        const totals = JSON.parse(document.getElementById('totals').textContent || '[]');
+        const avgValues = JSON.parse(document.getElementById('avg-values').textContent || '[]');
+        const monthLabels = JSON.parse(document.getElementById('month-labels').textContent || '[]');
+        const monthCounts = JSON.parse(document.getElementById('month-counts').textContent || '[]');
+        const monthAvg = JSON.parse(document.getElementById('month-avg').textContent || '[]');
+        const monthTotals = JSON.parse(document.getElementById('month-totals').textContent || '[]');
+
+        
+        const boxplotData = JSON.parse(document.getElementById('boxplot-data').textContent || '{}');
+        const lineChartData = JSON.parse(document.getElementById('line-chart-data').textContent || '{}');
+        const comparisonBoxplotData = JSON.parse(document.getElementById('comparison-boxplot-data').textContent || '{}');
+        const comparisonLineChartData = JSON.parse(document.getElementById('comparison-line-chart-data').textContent || '{}');
+        
+        
+        const linhaTemporalLabels = JSON.parse(document.getElementById('linha-temporal-labels').textContent || '[]');
+        const linhaTemporalValores = JSON.parse(document.getElementById('linha-temporal-valores').textContent || '[]');
+        const linhaTemporalLabelsT = JSON.parse(document.getElementById('linha-temporal-labelsT').textContent || '[]');
+        const linhaTemporalValoresT = JSON.parse(document.getElementById('linha-temporal-valoresT').textContent || '[]');
+
+        const colorPalette = [
+            { bg: '#90e0ef', border: '#0077b6', rgba: 'rgba(144, 224, 239, 0.2)' },
+            { bg: '#ffd166', border: '#f77f00', rgba: 'rgba(255, 209, 102, 0.2)' },
+            { bg: '#ef476f', border: '#c9184a', rgba: 'rgba(239, 71, 111, 0.2)' },
+            { bg: '#06ffa5', border: '#0d8f5f', rgba: 'rgba(6, 255, 165, 0.2)' },
+            { bg: '#9d4edd', border: '#6a0572', rgba: 'rgba(157, 78, 221, 0.2)' },
+            { bg: '#fb8500', border: '#f77f00', rgba: 'rgba(251, 133, 0, 0.2)' },
+            { bg: '#e76f51', border: '#e76f51', rgba: 'rgba(231, 111, 81, 0.2)' },
+            { bg: '#2a9d8f', border: '#2a9d8f', rgba: 'rgba(42, 157, 143, 0.2)' },
+            { bg: '#264653', border: '#264653', rgba: 'rgba(38, 70, 83, 0.2)' },
+            { bg: '#f4a261', border: '#f4a261', rgba: 'rgba(244, 162, 97, 0.2)' },
+            { bg: '#e9c46a', border: '#e9c46a', rgba: 'rgba(233, 196, 106, 0.2)' },
+            { bg: '#8338ec', border: '#8338ec', rgba: 'rgba(131, 56, 236, 0.2)' }
+        ];
+    
+        const tooltipCallback = context => {
+            const label = context.dataset.label || '';
+            const value = context.parsed.y;
+            const unidade = label.includes("Total") ? " L" : " m³/s";
+            return `${label}: ${value}${unidade}`;
+        };
+    
+        
+        const getScalesOptions = () => {
+            const isDark = document.body.classList.contains('dark-mode');
+            const color = isDark ? '#ffffff' : '#000000';
+            return {
+                x: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Ano', color: color },
+                    ticks: { color: color }
+                },
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    title: { display: true, text: 'Total (L)', color: color },
+                    ticks: { color: color }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    title: { display: true, text: 'Média (m³/s)', color: color },
+                    ticks: { color: color }
+                }
+            };
+        };
+
+        
+        const zoomConfigXY = {
+            zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                drag: { enabled: true },
+                mode: 'xy'
+            },
+            pan: {
+                enabled: true,
+                mode: 'xy',
+                threshold: 10
+            }
+        };
+
+        const zoomConfigX = {
+            zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                drag: { enabled: true },
+                mode: 'x'
+            },
+            pan: {
+                enabled: true,
+                mode: 'x',
+                threshold: 10
+            }
+        };
+
+        const zoomConfigXHeavy = {
+            zoom: {
+                wheel: { enabled: true, speed: 0.15 },
+                pinch: { enabled: true },
+                drag: { enabled: true },
+                mode: 'x'
+            },
+            pan: {
+                enabled: true,
+                mode: 'x',
+                threshold: 5
+            }
+        };
+
+        // Custom zoom config for time-based charts to prevent page scrolling
+        const zoomConfigXTime = {
+            zoom: {
+                wheel: { 
+                    enabled: true, 
+                    speed: 0.1,
+                    modifierKey: null // Remove modifier key requirement
+                },
+                pinch: { enabled: true },
+                drag: { enabled: true },
+                mode: 'x'
+            },
+            pan: {
+                enabled: true,
+                mode: 'x',
+                threshold: 10
+            }
+        };
+
+        
+        function createYearlyTrendChart() {
+            const canvas = document.getElementById('yearlyChart');
+            if (!canvas) return;
+
+            let chartData;
+
+            if (comparisonMode && Object.keys(seriesData).length > 0) {
+                chartData = createComparisonYearlyData();
+            } else {
+                chartData = createSingleYearlyData();
+            }
+
+            const config = {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    scales: getScalesOptions(),
+                    plugins: {
+                        zoom: zoomConfigXY,
+                        tooltip: { 
+                            mode: 'index', 
+                            intersect: false, 
+                            callbacks: { label: tooltipCallback } 
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            };
+
+            
+            if (chartInstances['yearlyChart']) {
+                chartInstances['yearlyChart'].destroy();
+            }
+
+            chartInstances['yearlyChart'] = new Chart(canvas.getContext('2d'), config);
+        }
+
+        function createSingleYearlyData() {
+            return {
+                labels: years,
+                datasets: [
+                    { 
+                        type: 'bar', 
+                        label: 'Total (L)', 
+                        data: totals, 
+                        backgroundColor: '#90e0ef', 
+                        borderColor: '#0077b6',
+                        borderWidth: 1,
+                        yAxisID: 'y', 
+                        order: 2 
+                    },
+                    { 
+                        type: 'line', 
+                        label: 'Média (m³/s)', 
+                        data: avgValues, 
+                        borderColor: '#0077b6', 
+                        backgroundColor: 'rgba(0, 119, 182, 0.1)',
+                        fill: false, 
+                        tension: 0.3, 
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                        yAxisID: 'y1', 
+                        order: 1 
+                    }
+                ]
+            };
+        }
+
+        function createComparisonYearlyData() {
+            const datasets = [];
+            let colorIndex = 0;
+            const allYears = new Set();
+
+            
+            Object.values(seriesData).forEach(series => {
+                if (series.years) {
+                    series.years.forEach(year => allYears.add(year));
+                }
+            });
+
+            const sortedYears = Array.from(allYears).sort();
+
+            
+            Object.keys(seriesData).forEach(seriesKey => {
+                const series = seriesData[seriesKey];
+                const color = colorPalette[colorIndex % colorPalette.length];
+                const selectedYear = series.selected_year || 'N/A';
+                
+                
+                const yearIndex = series.years.indexOf(selectedYear);
+                if (yearIndex !== -1) {
+                    
+                    datasets.push({
+                        type: 'bar',
+                        label: `${series.serie.nome} (${selectedYear}) - Total (L)`,
+                        data: sortedYears.map(year => {
+                            if (year === selectedYear) {
+                                return series.totals[yearIndex] || 0;
+                            }
+                            return null;
+                        }),
+                        backgroundColor: color.bg,
+                        borderColor: color.border,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        order: 2
+                    });
+
+                    
+                    datasets.push({
+                        type: 'line',
+                        label: `${series.serie.nome} (${selectedYear}) - Média (m³/s)`,
+                        data: sortedYears.map(year => {
+                            if (year === selectedYear) {
+                                return series.avg_values[yearIndex] || 0;
+                            }
+                            return null;
+                        }),
+                        borderColor: color.border,
+                        backgroundColor: color.rgba,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        borderWidth: 3,
+                        yAxisID: 'y1',
+                        order: 1
+                    });
+                }
+                colorIndex++;
+            });
+
+            return {
+                labels: sortedYears,
+                datasets: datasets
+            };
+        }
+
+        
+        function loadSeriesForPoint(pontoId, callback) {
+            
+            if (cachedPointSeries[pontoId]) {
+                console.log('Using cached series data for point:', pontoId);
+                callback(cachedPointSeries[pontoId]);
+                return;
+            }
+            
+            
+            if (isLoadingSeries) {
+                console.log('Already loading series, please wait...');
+                return;
+            }
+            
+            isLoadingSeries = true;
+            showSeriesLoading();
+            
+            fetch(`/caudais/obter_series_por_ponto/?ponto_id=${pontoId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(series => {
+                    console.log(`Loaded ${series.length} series for point ${pontoId}`);
+                    
+                    
+                    cachedPointSeries[pontoId] = series;
+                    
+                    
+                    series.forEach(serie => {
+                        loadedSeriesData[serie.id] = {
+                            id: serie.id,
+                            nome: serie.nome,
+                            years: serie.years || [],
+                            latest_year: serie.latest_year,
+                            total_years: serie.total_years || 0
+                        };
+                    });
+                    
+                    hideSeriesLoading();
+                    callback(series);
+                })
+                .catch(error => {
+                    console.error('Error loading series:', error);
+                    hideSeriesLoading();
+                    showErrorMessage('Erro ao carregar séries. Tente novamente.');
+                })
+                .finally(() => {
+                    isLoadingSeries = false;
+                });
+        }
+        
+        function showSeriesLoading() {
+            const seriesCheckboxes = document.getElementById('series_checkboxes');
+            if (seriesCheckboxes) {
+                seriesCheckboxes.innerHTML = '<div style="text-align: center; padding: 20px; color: #0077b6;"><i class="fas fa-spinner fa-spin"></i> Carregando séries...</div>';
+            }
+        }
+        
+        function hideSeriesLoading() {
+            
+        }
+        
+        function showErrorMessage(message) {
+            const seriesCheckboxes = document.getElementById('series_checkboxes');
+            if (seriesCheckboxes) {
+                seriesCheckboxes.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> ${message}</div>`;
+            }
+        }
+
+        function createComparisonDatasets(dataType, isYearly = false) {
+            const datasets = [];
+            let colorIndex = 0;
+
+            Object.keys(seriesData).forEach(seriesKey => {
+                const series = seriesData[seriesKey];
+                const color = colorPalette[colorIndex % colorPalette.length];
+                const selectedYear = series.selected_year || 'N/A';
+                
+                if (isYearly) {
+                    
+                    const yearIndex = series.years.indexOf(selectedYear);
+                    if (yearIndex !== -1) {
+                    datasets.push({
+                        type: 'bar',
+                            label: `${series.serie.nome} (${selectedYear}) - Total (L)`,
+                            data: [{ x: selectedYear, y: series.totals[yearIndex] }],
+                        backgroundColor: color.bg,
+                        borderColor: color.border,
+                        yAxisID: 'y',
+                        order: 2
+                    });
+
+                    datasets.push({
+                        type: 'line',
+                            label: `${series.serie.nome} (${selectedYear}) - Média (m³/s)`,
+                            data: [{ x: selectedYear, y: series.avg_values[yearIndex] }],
+                        borderColor: color.border,
+                        backgroundColor: color.rgba,
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                        order: 1
+                    });
+                    }
+                } else {
+                    if (dataType === 'avg') {
+                        datasets.push({
+                            label: `${series.serie.nome} (${selectedYear}) - Média (m³/s)`,
+                            data: series.month_avg,
+                            borderColor: color.border,
+                            backgroundColor: color.rgba,
+                            fill: true,
+                            tension: 0.3
+                        });
+                    } else if (dataType === 'total') {
+                        datasets.push({
+                            type: 'bar',
+                            label: `${series.serie.nome} (${selectedYear}) - Total (L)`,
+                            data: series.month_totals,
+                            backgroundColor: color.bg,
+                            borderColor: color.border,
+                            yAxisID: 'y',
+                            order: 2
+                        });
+                        datasets.push({
+                            type: 'line',
+                            label: `${series.serie.nome} (${selectedYear}) - Média (m³/s)`,
+                            data: series.month_avg,
+                            borderColor: color.border,
+                            backgroundColor: color.rgba,
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y1',
+                            order: 1
+                        });
+                    }
+                }
+                colorIndex++;
+            });
+
+            return datasets;
+        }
+
+        function getComparisonLabels(isYearly = false) {
+            if (isYearly) {
+                
+                const selectedYears = new Set();
+                Object.keys(seriesData).forEach(seriesKey => {
+                    const series = seriesData[seriesKey];
+                    if (series.selected_year) {
+                        selectedYears.add(series.selected_year);
+                    }
+                });
+                return Array.from(selectedYears).sort();
+            } else {
+                return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+            }
+        }
+
+
+        let chartConfigs;
+
+        if (comparisonMode && Object.keys(seriesData).length > 0) {
+
+            chartConfigs = [
+                {
+                    id: 'monthlyAvgChart',
+                    config: {
+                        type: 'line',
+                        data: {
+                            labels: getComparisonLabels(),
+                            datasets: createComparisonDatasets('avg')
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Média (m³/s)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                }
+                            },
+                            plugins: {
+                                zoom: zoomConfigXY,
+                                tooltip: { mode: 'index', intersect: false }
+                            }
+                        }
+                    }
+                },
+                {
+                    id: 'monthlyTotalChart',
+                    config: {
+                        type: 'bar',
+                        data: {
+                            labels: getComparisonLabels(),
+                            datasets: createComparisonDatasets('total')
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    position: 'left',
+                                    title: { display: true, text: 'Média (m³/s)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                },
+                                y1: {
+                                    beginAtZero: true,
+                                    position: 'right',
+                                    grid: { drawOnChartArea: false },
+                                    title: { display: true, text: 'Total (L)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                }
+                            },
+                            plugins: {
+                                zoom: zoomConfigXY,
+                                tooltip: { mode: 'index', intersect: false, callbacks: { label: tooltipCallback } }
+                            }
+                        }
+                    }
+                }
+            ];
+        } else {
+
+            chartConfigs = [
+                {
+                    id: 'monthlyAvgChart',
+                    config: {
+                        type: 'line',
+                        data: {
+                            labels: monthLabels,
+                            datasets: [{
+                                label: 'Média (m³/s)',
+                                data: monthAvg,
+                                borderColor: '#0096c7',
+                                backgroundColor: 'rgba(0,150,199,0.2)',
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Caudal Médio (m³/s)',
+                                        color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000'
+                                    },
+                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                }
+                            },
+                            plugins: {
+                                zoom: zoomConfigXY,
+                                title: { display: true, text: 'Caudal Médio Mensal' },
+                                tooltip: { mode: 'index', intersect: false }
+                            }
+                        }
+                    }
+                },
+                {
+                    id: 'monthlyTotalChart',
+                    config: {
+                        type: 'bar',
+                        data: {
+                            labels: monthLabels,
+                            datasets: [
+                                { label: 'Total (L)', data: monthTotals, backgroundColor: '#90e0ef', yAxisID: 'y', order: 2 },
+                                { label: 'Média (m³/s)', data: monthAvg, type: 'line', borderColor: '#0077b6', backgroundColor: 'rgba(0,119,182,0.2)', fill: true, tension: 0.3, yAxisID: 'y1', order: 1 }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: getScalesOptions(),
+                            plugins: {
+                                zoom: zoomConfigXY,
+                                title: { display: true, text: 'Volume Total e Média Mensal' },
+                                tooltip: { mode: 'index', intersect: false, callbacks: { label: tooltipCallback } }
+                            }
+                        }
+                    }
+                }
+            ];
+        }
+    
+        const chartInstances = {};
+        
+        
+        createYearlyTrendChart();
+        
+        
+        chartConfigs.forEach(cfg => {
+            if (cfg.id !== 'yearlyChart') { 
+                chartInstances[cfg.id] = new Chart(document.getElementById(cfg.id).getContext('2d'), cfg.config);
+            }
+        });
+    
+        
+        function createBoxplotChart() {
+            let dataToUse = boxplotData;
+            let isComparison = false;
+            
+            
+            if (comparisonMode && Object.keys(comparisonBoxplotData).length > 0) {
+                dataToUse = comparisonBoxplotData;
+                isComparison = true;
+            } else if (!boxplotData || Object.keys(boxplotData).length === 0) {
+                
+                document.querySelector('#boxplotChart').parentElement.style.display = 'none';
+                return;
+            }
+
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            if (isComparison) {
+                
+                createComparisonBoxplot(dataToUse, months);
+                return;
+            }
+            
+            
+            const boxData = [];
+            const outlierData = [];
+            
+            for (let month = 1; month <= 12; month++) {
+                if (dataToUse[month]) {
+                    const stats = dataToUse[month];
+                    boxData.push({
+                        x: months[month - 1],
+                        min: parseFloat(stats.min) || 0,
+                        q1: parseFloat(stats.q1) || 0,
+                        median: parseFloat(stats.median) || 0,
+                        mean: parseFloat(stats.mean) || 0,
+                        q3: parseFloat(stats.q3) || 0,
+                        max: parseFloat(stats.max) || 0
+                    });
+                    
+                    
+                    if (stats.outliers && stats.outliers.length > 0) {
+                        stats.outliers.forEach(outlier => {
+                            outlierData.push({
+                                x: months[month - 1],
+                                y: parseFloat(outlier)
+                            });
+                        });
+                    }
+                } else {
+                    boxData.push(null);
+                }
+            }
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+
+            const boxplotConfig = {
+                type: 'boxplot',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Distribuição Mensal',
+                        data: boxData,
+                        backgroundColor: 'rgba(0, 119, 182, 0.3)',
+                        borderColor: '#0077b6',
+                        borderWidth: 2,
+                        outlierBackgroundColor: '#dc3545',
+                        outlierBorderColor: '#dc3545',
+                        outlierRadius: 6,
+                        outlierHoverRadius: 8
+                    }, {
+                        label: 'Outliers',
+                        type: 'scatter',
+                        data: outlierData,
+                        backgroundColor: '#dc3545',
+                        borderColor: '#dc3545',
+                        pointBackgroundColor: '#dc3545',
+                        pointBorderColor: '#dc3545',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointStyle: 'circle',
+                        showLine: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'xy',
+                        intersect: true
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Distribuição Mensal de Caudal',
+                            color: textColor
+                        },
+                        legend: {
+                            labels: {
+                                color: textColor,
+                                filter: function(legendItem, chartData) {
+                                    return !legendItem.text.includes('Outliers');
+                                }
+                            }
+                        },
+                        tooltip: {
+                            intersect: true,
+                            mode: 'nearest'
+                        },
+                        zoom: zoomConfigXY
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês',
+                                color: textColor
+                            },
+                            ticks: { color: textColor }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal (m³/s)',
+                                color: textColor
+                            },
+                            ticks: { color: textColor }
+                        }
+                    }
+                }
+            };
+
+            try {
+                chartInstances['boxplotChart'] = new Chart(
+                    document.getElementById('boxplotChart').getContext('2d'), 
+                    boxplotConfig
+                );
+                
+                
+            } catch (error) {
+                console.log('Boxplot plugin not available, creating alternative visualization');
+                createAlternativeBoxplot(boxData, months);
+            }
+        }
+
+        function createComparisonBoxplot(comparisonData, months) {
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+            
+            const datasets = [];
+            const colorPalette = [
+                '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500',
+                '#e76f51', '#2a9d8f', '#264653', '#f4a261', '#e9c46a', '#8338ec'
+            ];
+            
+            let colorIndex = 0;
+            
+            
+            Object.keys(comparisonData).forEach(serieYearKey => {
+                const serieInfo = comparisonData[serieYearKey];
+                const serieData = serieInfo.data;
+                const label = `${serieInfo.serie_name} (${serieInfo.year})`;
+                const color = colorPalette[colorIndex % colorPalette.length];
+                
+                const boxData = [];
+                const outlierData = [];
+                
+                for (let month = 1; month <= 12; month++) {
+                    if (serieData[month]) {
+                        const stats = serieData[month];
+                        boxData.push({
+                            x: months[month - 1],
+                            min: parseFloat(stats.min) || 0,
+                            q1: parseFloat(stats.q1) || 0,
+                            median: parseFloat(stats.median) || 0,
+                            mean: parseFloat(stats.mean) || 0,
+                            q3: parseFloat(stats.q3) || 0,
+                            max: parseFloat(stats.max) || 0
+                        });
+                        
+                        
+                        if (stats.outliers && stats.outliers.length > 0) {
+                            stats.outliers.forEach(outlier => {
+                                outlierData.push({
+                                    x: months[month - 1],
+                                    y: parseFloat(outlier),
+                                    serieColor: color 
+                                });
+                            });
+                        }
+                    } else {
+                        boxData.push(null);
+                    }
+                }
+                
+                
+                datasets.push({
+                    label: label,
+                    data: boxData,
+                    backgroundColor: color + '40',
+                    borderColor: color,
+                    borderWidth: 2,
+                    outlierBackgroundColor: color, 
+                    outlierBorderColor: color,     
+                    outlierRadius: 6
+                });
+                
+                
+                if (outlierData.length > 0) {
+                    datasets.push({
+                        label: `${label} - Outliers`,
+                        data: outlierData,
+                        type: 'scatter',
+                        borderColor: color,         
+                        backgroundColor: color,     
+                        pointBackgroundColor: color, 
+                        pointBorderColor: color,    
+                        pointRadius: 7,
+                        pointHoverRadius: 9,
+                        pointStyle: 'circle',
+                        showLine: false
+                    });
+                }
+                
+                colorIndex++;
+            });
+
+
+
+            const comparisonBoxplotConfig = {
+                type: 'boxplot',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'xy',
+                        intersect: false 
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: textColor,
+                                filter: function(legendItem, chartData) {
+                                    return !legendItem.text.includes('Outliers');
+                                },
+                                usePointStyle: true,
+                                padding: 15
+                            },
+                            position: 'top'
+                        },
+                        tooltip: {
+                            intersect: false,
+                            mode: 'nearest',
+                            callbacks: {
+                                title: function(context) {
+                                    return `Mês: ${context[0].label}`;
+                                },
+                                label: function(context) {
+                                    const dataset = context.dataset;
+                                    const value = context.parsed.y;
+                                    
+                                    if (dataset.type === 'scatter') {
+                                        return `${dataset.label}: ${value.toFixed(3)} m³/s (Outlier)`;
+                                    } else {
+                                        const dataPoint = context.parsed;
+                                        return [
+                                            `${dataset.label}:`,
+                                            `  Min: ${dataPoint.min?.toFixed(3) || 'N/A'} m³/s`,
+                                            `  Q1: ${dataPoint.q1?.toFixed(3) || 'N/A'} m³/s`,
+                                            `  Mediana: ${dataPoint.median?.toFixed(3) || 'N/A'} m³/s`,
+                                            `  Média: ${dataPoint.mean?.toFixed(3) || 'N/A'} m³/s`,
+                                            `  Q3: ${dataPoint.q3?.toFixed(3) || 'N/A'} m³/s`,
+                                            `  Max: ${dataPoint.max?.toFixed(3) || 'N/A'} m³/s`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        zoom: zoomConfigXY
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês',
+                                color: textColor,
+                                font: { size: 14 }
+                            },
+                            ticks: { 
+                                color: textColor,
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: isDark ? '#444' : '#e0e0e0'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal (m³/s)',
+                                color: textColor,
+                                font: { size: 14 }
+                            },
+                            ticks: { 
+                                color: textColor,
+                                font: { size: 12 },
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' m³/s';
+                                }
+                            },
+                            grid: {
+                                color: isDark ? '#444' : '#e0e0e0'
+                            }
+                        }
+                    }
+                }
+            };
+
+            try {
+                chartInstances['boxplotChart'] = new Chart(
+                    document.getElementById('boxplotChart').getContext('2d'), 
+                    comparisonBoxplotConfig
+                );
+                
+                
+            } catch (error) {
+                console.log('Boxplot plugin not available, creating alternative visualization');
+                createAlternativeComparisonBoxplot(comparisonData, months);
+            }
+        }
+
+        function createAlternativeComparisonBoxplot(comparisonData, months) {
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+            
+            const datasets = [];
+            const colorPalette = [
+                '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500'
+            ];
+            
+            let colorIndex = 0;
+            
+            Object.keys(comparisonData).forEach(serieYearKey => {
+                const serieInfo = comparisonData[serieYearKey];
+                const serieData = serieInfo.data;
+                const label = `${serieInfo.serie_name} (${serieInfo.year})`;
+                const color = colorPalette[colorIndex % colorPalette.length];
+                
+                const medianData = [];
+                const meanData = [];
+                const outlierData = [];
+                
+                for (let month = 1; month <= 12; month++) {
+                    if (serieData[month]) {
+                        const stats = serieData[month];
+                        medianData.push(parseFloat(stats.median) || 0);
+                        meanData.push(parseFloat(stats.mean) || 0);
+                        
+                        if (stats.outliers && stats.outliers.length > 0) {
+                            stats.outliers.forEach(outlier => {
+                                outlierData.push({
+                                    x: months[month - 1],
+                                    y: parseFloat(outlier)
+                                });
+                            });
+                        }
+                    } else {
+                        medianData.push(null);
+                        meanData.push(null);
+                    }
+                }
+                
+                
+                datasets.push({
+                    label: `${label} - Mediana`,
+                    data: medianData,
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.3
+                });
+                
+                
+                datasets.push({
+                    label: `${label} - Média`,
+                    data: meanData,
+                    borderColor: color,
+                    backgroundColor: color + '40',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 3,
+                    pointStyle: 'rectRot',
+                    fill: false,
+                    tension: 0.3
+                });
+                
+                
+                if (outlierData.length > 0) {
+                    datasets.push({
+                        label: `${label} - Outliers`,
+                        data: outlierData,
+                        type: 'scatter',
+                        borderColor: color,       
+                        backgroundColor: color,   
+                        pointBackgroundColor: color, 
+                        pointBorderColor: color,     
+                        pointRadius: 7,
+                        pointHoverRadius: 9,
+                        pointStyle: 'circle',
+                        showLine: false
+                    });
+                }
+                
+                colorIndex++;
+            });
+
+
+
+            const alternativeConfig = {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'xy',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Comparação de Distribuição Mensal de Caudal',
+                            color: textColor,
+                            font: { size: 16 }
+                        },
+                        legend: {
+                            labels: {
+                                color: textColor,
+                                usePointStyle: true,
+                                filter: function(legendItem, chartData) {
+                                    return !legendItem.text.includes('Outliers');
+                                },
+                                padding: 15
+                            },
+                            position: 'top'
+                        },
+                        tooltip: {
+                            intersect: false,
+                            mode: 'nearest',
+                            callbacks: {
+                                title: function(context) {
+                                    return `Mês: ${context[0].label}`;
+                                },
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    if (context.dataset.label.includes('Outlier')) {
+                                        return `${context.dataset.label}: ${value.toFixed(3)} m³/s`;
+                                    } else {
+                                        return `${context.dataset.label}: ${value.toFixed(3)} m³/s`;
+                                    }
+                                }
+                            }
+                        },
+                        zoom: zoomConfigXY
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês',
+                                color: textColor,
+                                font: { size: 14 }
+                            },
+                            ticks: { 
+                                color: textColor,
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: isDark ? '#444' : '#e0e0e0'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal (m³/s)',
+                                color: textColor,
+                                font: { size: 14 }
+                            },
+                            ticks: { 
+                                color: textColor,
+                                font: { size: 12 },
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' m³/s';
+                                }
+                            },
+                            grid: {
+                                color: isDark ? '#444' : '#e0e0e0'
+                            }
+                        }
+                    }
+                }
+            };
+
+            chartInstances['boxplotChart'] = new Chart(
+                document.getElementById('boxplotChart').getContext('2d'), 
+                alternativeConfig
+            );
+            
+        }
+
+        function createAlternativeBoxplot(boxData, months) {
+            const medianData = [];
+            const meanData = [];
+            const q1Data = [];
+            const q3Data = [];
+            const minData = [];
+            const maxData = [];
+            const scatterData = [];
+            
+            boxData.forEach((data, index) => {
+                if (data) {
+                    medianData.push(data.median);
+                    meanData.push(data.mean);
+                    q1Data.push(data.q1);
+                    q3Data.push(data.q3);
+                    minData.push(data.min);
+                    maxData.push(data.max);
+                    
+                    const monthName = months[index];
+                    const monthNumber = index + 1;
+                    
+                    
+                    if (boxplotData[monthNumber] && boxplotData[monthNumber].outliers && boxplotData[monthNumber].outliers.length > 0) {
+                        boxplotData[monthNumber].outliers.forEach(outlier => {
+                            scatterData.push({x: monthName, y: parseFloat(outlier)});
+                        });
+                    }
+                } else {
+                    medianData.push(null);
+                    meanData.push(null);
+                    q1Data.push(null);
+                    q3Data.push(null);
+                    minData.push(null);
+                    maxData.push(null);
+                }
+            });
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+
+            const alternativeConfig = {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Máximo',
+                            data: maxData,
+                            borderColor: '#ef476f',
+                            backgroundColor: 'rgba(239, 71, 111, 0.1)',
+                            borderWidth: 1,
+                            borderDash: [2, 2],
+                            pointRadius: 2,
+                            pointStyle: 'triangle'
+                        },
+                        {
+                            label: 'Q3 (75%)',
+                            data: q3Data,
+                            borderColor: '#90e0ef',
+                            backgroundColor: 'rgba(144, 224, 239, 0.3)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointStyle: 'rect'
+                        },
+                        {
+                            label: 'Mediana (50%)',
+                            data: medianData,
+                            borderColor: '#0077b6',
+                            backgroundColor: 'rgba(0, 119, 182, 0.5)',
+                            borderWidth: 4,
+                            pointRadius: 5,
+                            pointStyle: 'circle'
+                        },
+                        {
+                            label: 'Média',
+                            data: meanData,
+                            borderColor: '#023e8a',
+                            backgroundColor: 'rgba(2, 62, 138, 0.5)',
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointStyle: 'rectRot'
+                        },
+                        {
+                            label: 'Q1 (25%)',
+                            data: q1Data,
+                            borderColor: '#caf0f8',
+                            backgroundColor: 'rgba(202, 240, 248, 0.3)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointStyle: 'rect'
+                        },
+                        {
+                            label: 'Mínimo',
+                            data: minData,
+                            borderColor: '#023e8a',
+                            backgroundColor: 'rgba(2, 62, 138, 0.1)',
+                            borderWidth: 1,
+                            borderDash: [2, 2],
+                            pointRadius: 2,
+                            pointStyle: 'triangle'
+                        },
+                        {
+                            label: 'Outliers',
+                            data: scatterData,
+                            type: 'scatter',
+                            borderColor: '#dc3545',
+                            backgroundColor: '#dc3545',
+                            pointBackgroundColor: '#dc3545',
+                            pointBorderColor: '#dc3545',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointStyle: 'circle',
+                            showLine: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'xy',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Distribuição Estatística Mensal de Caudal',
+                            color: textColor,
+                            font: { size: 16 }
+                        },
+                        legend: {
+                            labels: {
+                                color: textColor,
+                                usePointStyle: true,
+                                filter: function(legendItem, chartData) {
+                                    return !legendItem.text.includes('Outliers');
+                                },
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            intersect: false,
+                            mode: 'nearest'
+                        },
+                        zoom: zoomConfigXY
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês',
+                                color: textColor,
+                                font: { size: 14 }
+                            },
+                            ticks: { 
+                                color: textColor,
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: isDark ? '#444' : '#e0e0e0'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal (m³/s)',
+                                color: textColor,
+                                font: { size: 14 }
+                            },
+                            ticks: { 
+                                color: textColor,
+                                font: { size: 12 },
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' m³/s';
+                                }
+                            },
+                            grid: {
+                                color: isDark ? '#444' : '#e0e0e0'
+                            }
+                        }
+                    }
+                }
+            };
+
+            chartInstances['boxplotChart'] = new Chart(
+                document.getElementById('boxplotChart').getContext('2d'), 
+                alternativeConfig
+            );
+            
+        }
+
+        
+        function createDailyLineChart() {
+            let dataToUse = lineChartData;
+            let isComparison = false;
+            
+            
+            if (comparisonMode && Object.keys(comparisonLineChartData).length > 0) {
+                dataToUse = comparisonLineChartData;
+                isComparison = true;
+            } else if (!lineChartData || !lineChartData.labels || lineChartData.labels.length === 0) {
+                
+                document.querySelector('#dailyLineChart').parentElement.style.display = 'none';
+                return;
+            }
+            
+            if (isComparison) {
+                createComparisonDailyLineChart(dataToUse);
+                return;
+            }
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+
+            const dailyConfig = {
+                type: 'line',
+                data: {
+                    labels: lineChartData.labels,
+                    datasets: [{
+                        label: 'Média Diária (m³/s)',
+                        data: lineChartData.values,
+                        borderColor: '#0077b6',
+                        backgroundColor: 'rgba(0, 119, 182, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        spanGaps: false  
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Evolução Diária do Caudal',
+                            color: textColor
+                        },
+                        legend: {
+                            labels: {
+                                color: textColor
+                            }
+                        },
+                        zoom: zoomConfigX
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Data',
+                                color: textColor
+                            },
+                            ticks: { 
+                                color: textColor,
+                                maxTicksLimit: 10  
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal Médio Diário (m³/s)',
+                                color: textColor
+                            },
+                            ticks: { color: textColor },
+                            
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            };
+
+            chartInstances['dailyLineChart'] = new Chart(
+                document.getElementById('dailyLineChart').getContext('2d'), 
+                dailyConfig
+            );
+        }
+
+        function createComparisonDailyLineChart(comparisonData) {
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+            
+            const datasets = [];
+            const colorPalette = [
+                '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500',
+                '#e76f51', '#2a9d8f', '#264653', '#f4a261', '#e9c46a', '#8338ec'
+            ];
+            
+            let colorIndex = 0;
+            let allLabels = new Set();
+            
+            
+            Object.keys(comparisonData).forEach(serieYearKey => {
+                const serieInfo = comparisonData[serieYearKey];
+                const serieData = serieInfo.data;
+                const label = `${serieInfo.serie_name} (${serieInfo.year})`;
+                const color = colorPalette[colorIndex % colorPalette.length];
+                
+                
+                if (serieData.labels && serieData.labels.length > 0) {
+                    serieData.labels.forEach(label => allLabels.add(label));
+                    
+                    
+                    datasets.push({
+                        label: label,
+                        data: serieData.values || [],
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        spanGaps: false
+                    });
+                }
+                
+                colorIndex++;
+            });
+
+            
+            const sortedLabels = Array.from(allLabels).sort();
+
+            const comparisonDailyConfig = {
+                type: 'line',
+                data: {
+                    labels: sortedLabels,
+                    datasets: datasets,
+                    
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: textColor
+                            }
+                        },
+                        zoom: zoomConfigX
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Data',
+                                color: textColor
+                            },
+                            ticks: { 
+                                color: textColor,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Caudal Médio Diário (m³/s)',
+                                color: textColor
+                            },
+                            ticks: { color: textColor }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            };
+
+            chartInstances['dailyLineChart'] = new Chart(
+                document.getElementById('dailyLineChart').getContext('2d'), 
+                comparisonDailyConfig
+            );
+        }
+
+        
+        createBoxplotChart();
+        createDailyLineChart();
+    
+        function resetZoom(chartId) {
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].resetZoom();
+            }
+        }
+    
+        function updateChartsTheme() {
+            
+            createYearlyTrendChart();
+            
+            
+            createBoxplotChart();
+            createDailyLineChart();
+            
+            
+            createLinhaCharts();
+            
+            chartConfigs.forEach(cfg => {
+                const chart = chartInstances[cfg.id];
+                if (chart) {
+                    chart.options.scales = getScalesOptions();
+                    chart.update();
+                }
+            });
+        }
+
+
+        document.getElementById('comparison_mode').addEventListener('change', function() {
+            const singleContainer = document.getElementById('single_serie_container');
+            const multipleContainer = document.getElementById('multiple_series_container');
+            const singleYearGroup = document.getElementById('single_year_group');
+            const comparisonYearsContainer = document.getElementById('comparison_years_container');
+            
+            if (this.checked) {
+                singleContainer.style.display = 'none';
+                multipleContainer.style.display = 'block';
+                singleYearGroup.style.display = 'none';
+                comparisonYearsContainer.style.display = 'block';
+                updateSeriesYearSelectors();
+            } else {
+                singleContainer.style.display = 'block';
+                multipleContainer.style.display = 'none';
+                singleYearGroup.style.display = 'block';
+                comparisonYearsContainer.style.display = 'none';
+            }
+        });
+    
+        function updateSeriesYearSelectors() {
+            const container = document.getElementById('series_years_selectors');
+            const checkboxes = document.querySelectorAll('input[name="serie_ids"]:checked');
+            
+            container.innerHTML = '';
+            
+            if (checkboxes.length === 0) {
+                return;
+            }
+
+            
+            const autoFillInfo = document.createElement('div');
+            autoFillInfo.className = 'auto-fill-info';
+            autoFillInfo.innerHTML = '<i class="fas fa-info-circle"></i> Os anos mais recentes são selecionados automaticamente. Máximo de 3 anos diferentes no total.';
+            container.appendChild(autoFillInfo);
+            
+            checkboxes.forEach(checkbox => {
+                const serieId = checkbox.value;
+                const serieLabel = checkbox.parentElement.querySelector('label').textContent;
+                
+                let availableYears = [];
+                
+                
+                if (loadedSeriesData[serieId] && loadedSeriesData[serieId].years) {
+                    availableYears = loadedSeriesData[serieId].years;
+                } else if (seriesData[serieId] && seriesData[serieId].all_available_years) {
+                    availableYears = seriesData[serieId].all_available_years;
+                } else if (seriesData[serieId] && seriesData[serieId].years) {
+                    availableYears = seriesData[serieId].years;
+                } else {
+                    
+                    const allLoadedYears = Object.values(loadedSeriesData).reduce((acc, series) => {
+                        if (series.years) {
+                            acc.push(...series.years);
+                        }
+                        return acc;
+                    }, []);
+                    
+                    const allSeriesDataYears = Object.values(seriesData).reduce((acc, series) => {
+                        if (series.all_available_years) {
+                            acc.push(...series.all_available_years);
+                        } else if (series.years) {
+                            acc.push(...series.years);
+                        }
+                        return acc;
+                    }, []);
+                    
+                    availableYears = [...new Set([...allLoadedYears, ...allSeriesDataYears])].sort();
+                }
+                
+                if (availableYears.length === 0) {
+                    console.warn(`No years found for series ${serieId}`);
+                    return;
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                div.style.marginBottom = '15px';
+                div.style.padding = '10px';
+                div.style.border = '1px solid #ddd';
+                div.style.borderRadius = '5px';
+                div.style.backgroundColor = '#f9f9f9';
+                
+                const label = document.createElement('label');
+                label.textContent = `Anos para ${serieLabel}:`;
+                label.style.fontSize = '14px';
+                label.style.marginBottom = '8px';
+                label.style.fontWeight = 'bold';
+                
+                
+                const yearsContainer = document.createElement('div');
+                yearsContainer.className = 'years-grid';
+                
+                
+                availableYears.forEach(year => {
+                    const yearDiv = document.createElement('div');
+                    yearDiv.className = 'year-checkbox-item';
+                    
+                    const yearCheckbox = document.createElement('input');
+                    yearCheckbox.type = 'checkbox';
+                    yearCheckbox.name = `years_${serieId}`;
+                    yearCheckbox.value = year;
+                    yearCheckbox.id = `year_${serieId}_${year}`;
+                    yearCheckbox.style.margin = '0';
+                    
+                    const yearLabel = document.createElement('label');
+                    yearLabel.htmlFor = `year_${serieId}_${year}`;
+                    yearLabel.textContent = year;
+                    yearLabel.style.fontSize = '12px';
+                    yearLabel.style.margin = '0';
+                    yearLabel.style.cursor = 'pointer';
+                    yearLabel.style.fontWeight = 'normal';
+                    
+                    
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const selectedYears = urlParams.getAll(`years_${serieId}`);
+                    if (selectedYears.includes(year.toString())) {
+                        yearCheckbox.checked = true;
+                    }
+                    
+                    
+                    yearCheckbox.addEventListener('change', validateYearLimit);
+                    
+                    yearDiv.appendChild(yearCheckbox);
+                    yearDiv.appendChild(yearLabel);
+                    yearsContainer.appendChild(yearDiv);
+                });
+                
+                div.appendChild(label);
+                div.appendChild(yearsContainer);
+                container.appendChild(div);
+            });
+            
+            validateYearLimit();
+        }
+
+        function validateYearLimit() {
+            const allSelectedYears = new Set();
+            const warning = document.getElementById('year_limit_warning');
+            
+            
+            const yearCheckboxes = document.querySelectorAll('[name^="years_"]:checked');
+            yearCheckboxes.forEach(checkbox => {
+                allSelectedYears.add(checkbox.value);
+            });
+            
+            if (allSelectedYears.size > 3) {
+                warning.style.display = 'block';
+                
+                const submitButton = document.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.style.opacity = '0.6';
+                }
+                return false;
+            } else {
+                warning.style.display = 'none';
+                const submitButton = document.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.style.opacity = '1';
+                }
+                return true;
+            }
+        }
+
+        
+        function handleSeriesCheckboxChange() {
+            updateSeriesYearSelectors();
+            autoFillYears();
+        }
+
+        function autoFillYears() {
+            
+            const currentlySelectedYears = new Set();
+            const yearCheckboxes = document.querySelectorAll('[name^="years_"]:checked');
+            yearCheckboxes.forEach(checkbox => {
+                currentlySelectedYears.add(parseInt(checkbox.value));
+            });
+
+            
+            const checkedSeries = document.querySelectorAll('input[name="serie_ids"]:checked');
+            
+            checkedSeries.forEach(seriesCheckbox => {
+                const serieId = seriesCheckbox.value;
+                
+                
+                const seriesYearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]`);
+                const hasSelectedYears = Array.from(seriesYearCheckboxes).some(cb => cb.checked);
+                
+                if (!hasSelectedYears) {
+                    
+                    autoSelectYearsForSeries(serieId, currentlySelectedYears);
+                }
+            });
+        }
+
+        function autoSelectYearsForSeries(serieId, alreadySelectedYears) {
+            let availableYears = [];
+            
+            
+            if (loadedSeriesData[serieId] && loadedSeriesData[serieId].years) {
+                availableYears = [...loadedSeriesData[serieId].years].sort((a, b) => b - a);
+            } else if (seriesData[serieId] && seriesData[serieId].all_available_years) {
+                availableYears = [...seriesData[serieId].all_available_years].sort((a, b) => b - a);
+            } else if (seriesData[serieId] && seriesData[serieId].years) {
+                availableYears = [...seriesData[serieId].years].sort((a, b) => b - a);
+            } else {
+                const allLoadedYears = Object.keys(loadedSeriesData).reduce((acc, seriesKey) => {
+                    const series = loadedSeriesData[seriesKey];
+                    if (series.years) {
+                        acc.push(...series.years);
+                    }
+                    return acc;
+                }, []);
+                
+                const allSeriesDataYears = Object.keys(seriesData).reduce((acc, seriesKey) => {
+                    const series = seriesData[seriesKey];
+                    if (series.all_available_years) {
+                        acc.push(...series.all_available_years);
+                    } else if (series.years) {
+                        acc.push(...series.years);
+                    }
+                    return acc;
+                }, []);
+                
+                availableYears = [...new Set([...allLoadedYears, ...allSeriesDataYears])].sort((a, b) => b - a);
+            }
+
+            const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]`);
+            let yearsToSelect = [];
+            
+            
+            const remainingYearSlots = 3 - alreadySelectedYears.size;
+            
+            if (remainingYearSlots > 0) {
+                
+                for (const year of availableYears) {
+                    if (!alreadySelectedYears.has(year) && yearsToSelect.length < Math.min(remainingYearSlots, 2)) {
+                        yearsToSelect.push(year);
+                        alreadySelectedYears.add(year); 
+                    }
+                    
+                    if (yearsToSelect.length >= remainingYearSlots) {
+                        break;
+                    }
+                }
+
+                
+                if (yearsToSelect.length === 0 && remainingYearSlots > 0) {
+                    yearsToSelect = availableYears.slice(0, Math.min(remainingYearSlots, 1));
+                }
+
+                
+                yearCheckboxes.forEach(checkbox => {
+                    if (yearsToSelect.includes(parseInt(checkbox.value))) {
+                        checkbox.checked = true;
+                        
+                        
+                        const label = checkbox.parentElement.querySelector('label');
+                        if (label) {
+                            label.style.color = '#0077b6';
+                            label.style.fontWeight = 'bold';
+                            label.title = 'Ano selecionado automaticamente';
+                            
+                            
+                            setTimeout(() => {
+                                label.style.color = '';
+                                label.style.fontWeight = 'normal';
+                                label.title = '';
+                            }, 3000);
+                        }
+                    }
+                });
+
+                
+                if (yearsToSelect.length > 0) {
+                    showAutoFillNotification(yearsToSelect, serieId);
+                }
+            }
+
+            
+            validateYearLimit();
+        }
+
+        function showAutoFillNotification(selectedYears, serieId) {
+            
+            const notification = document.createElement('div');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.backgroundColor = isDarkMode ? '#2c3e50' : '#d4edda';
+            notification.style.color = isDarkMode ? '#74b9ff' : '#155724';
+            notification.style.border = isDarkMode ? '1px solid #74b9ff' : '1px solid #c3e6cb';
+            notification.style.borderRadius = '8px';
+            notification.style.padding = '12px 16px';
+            notification.style.zIndex = '9999';
+            notification.style.fontSize = '14px';
+            notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            notification.style.maxWidth = '300px';
+            notification.style.animation = 'slideIn 0.3s ease-out';
+            
+            const seriesName = document.querySelector(`input[value="${serieId}"]`).parentElement.querySelector('label').textContent;
+            notification.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <i class="fas fa-check-circle" style="margin-top: 2px; color: ${isDarkMode ? '#74b9ff' : '#0077b6'};"></i> 
+                    <div>
+                        <strong>Anos selecionados automaticamente:</strong><br>
+                        <small>${seriesName}: ${selectedYears.join(', ')}</small>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.parentElement.removeChild(notification);
+                    }
+                }, 300);
+            }, 3700);
+        }
+
+        function clearYearsForSeries(serieId) {
+            const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]`);
+            yearCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            validateYearLimit();
+        }
+    
+        document.getElementById('data_type').addEventListener('change', function () {
+            const reconMethodGroup = document.getElementById('recon_method_group');
+            const isVisible = this.value === 'reconstruido';
+            reconMethodGroup.style.display = isVisible ? 'block' : 'none';
+        });
+    
+        function toggleMenu() {
+            const menu = document.getElementById('dropdownMenu');
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        }
+    
+        document.addEventListener('click', function(event) {
+            const toggle = document.querySelector('.menu-toggle');
+            const menu = document.getElementById('dropdownMenu');
+            if (!toggle.contains(event.target) && !menu.contains(event.target)) {
+                menu.style.display = 'none';
+            }
+        });
+
+        if (localStorage.getItem('modoEscuro') === 'ativo') {
+            document.body.classList.add('dark-mode');
+            updateChartsTheme();
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle("dark-mode");
+            if (document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('modoEscuro', 'ativo');
+            } else {
+                localStorage.setItem('modoEscuro', 'inativo');
+            }
+            updateChartsTheme();
+        }
+
+        function showLoading() {
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'block';
+                loadingSpinner.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando dados...';
+            }
+            
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando...';
+                submitButton.style.opacity = '0.7';
+            }
+            
+            
+            if (comparisonMode) {
+                const selectedSeries = document.querySelectorAll('input[name="serie_ids"]:checked').length;
+                const selectedYears = document.querySelectorAll('[name^="years_"]:checked').length;
+                
+                if (loadingSpinner && selectedSeries > 1) {
+                    loadingSpinner.innerHTML = `
+                        <i class="fas fa-spinner fa-spin"></i> 
+                        Processando ${selectedSeries} séries com ${selectedYears} anos...
+                        <div style="font-size: 14px; margin-top: 5px;">Isto pode demorar alguns segundos.</div>
+                    `;
+                }
+            }
+        }
+
+        function hideLoading() {
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'none';
+            }
+            
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Filtrar';
+                submitButton.style.opacity = '1';
+            }
+        }
+
+        
+        let pageLoadStart = performance.now();
+        
+        function logPerformance(action, startTime) {
+            const endTime = performance.now();
+            const duration = Math.round(endTime - startTime);
+            console.log(`⚡ ${action} completed in ${duration}ms`);
+            
+            if (duration > 2000) {
+                console.warn(`⚠️ Slow operation detected: ${action} took ${duration}ms`);
+            }
+        }
+
+        window.onload = function() {
+            hideLoading();
+            logPerformance('Page load', pageLoadStart);
+        };
+
+        
+        document.querySelector('form').addEventListener('submit', function(event) {
+            const comparisonCheckbox = document.getElementById('comparison_mode');
+            const singleSerieSelect = document.getElementById('serie_id');
+            const multipleSerieCheckboxes = document.querySelectorAll('input[name="serie_ids"]:checked');
+            
+            
+            if (!comparisonCheckbox.checked) {
+                
+                if (!singleSerieSelect.value) {
+                    event.preventDefault();
+                    alert('Por favor, selecione uma série.');
+                    return false;
+                }
+                
+                document.querySelectorAll('input[name="serie_ids"]').forEach(cb => {
+                    cb.name = 'serie_ids_disabled'; 
+                });
+            } else {
+                
+                singleSerieSelect.value = '';
+                
+                if (multipleSerieCheckboxes.length === 0) {
+                    event.preventDefault();
+                    alert('Por favor, selecione pelo menos uma série para comparação.');
+                    return false;
+                }
+                
+                
+                const hasSelectedYears = Array.from(multipleSerieCheckboxes).some(checkbox => {
+                    const serieId = checkbox.value;
+                    const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]:checked`);
+                    return yearCheckboxes.length > 0;
+                });
+                
+                if (!hasSelectedYears) {
+                    event.preventDefault();
+                    alert('Por favor, selecione pelo menos um ano para cada série.');
+                    return false;
+                }
+            }
+            
+            
+            showLoading();
+            
+            
+            const formSubmitStart = performance.now();
+            setTimeout(() => {
+                logPerformance('Form submission processing', formSubmitStart);
+            }, 100);
+        });
+
+        
+        function showCacheStatus() {
+            const cachedPoints = Object.keys(cachedPointSeries).length;
+            const loadedSeries = Object.keys(loadedSeriesData).length;
+            
+            console.log(`📊 Cache Status: ${cachedPoints} points cached, ${loadedSeries} series loaded`);
+            
+            if (cachedPoints > 0) {
+                console.log('🚀 Using cached data for faster loading');
+            }
+        }
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(showCacheStatus, 1000);
+        });
+
+        function exportarExcel() {
+            showLoading();
+            const comparisonMode = document.getElementById('comparison_mode').checked;
+            let url;
+            
+            if (comparisonMode) {
+                const checkboxes = document.querySelectorAll('input[name="serie_ids"]:checked');
+                const serieIds = Array.from(checkboxes).map(cb => cb.value);
+                const tipo = document.getElementById('data_type').value;
+                const metodo = document.getElementById('recon_method').value;
+                
+                const params = new URLSearchParams();
+                serieIds.forEach(id => params.append('serie_ids', id));
+                params.append('data_type', tipo);
+                params.append('recon_method', metodo);
+                
+                
+                serieIds.forEach(serieId => {
+                    const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]:checked`);
+                    yearCheckboxes.forEach(checkbox => {
+                        params.append(`years_${serieId}`, checkbox.value);
+                    });
+                });
+                
+                url = `/caudais/exportar_excel/?${params.toString()}`;
+            } else {
+                const serie = document.getElementById('serie_id').value;
+                const tipo = document.getElementById('data_type').value;
+                const metodo = document.getElementById('recon_method').value;
+                const ano = document.getElementById('year').value;
+                
+                const params = new URLSearchParams();
+                params.append('serie_id', serie);
+                params.append('data_type', tipo);
+                params.append('recon_method', metodo);
+                if (ano) {
+                    
+                    params.append(`years_${serie}`, ano);
+                }
+                
+                url = `/caudais/exportar_excel/?${params.toString()}`;
+            }
+
+            const iframe = document.getElementById('download_iframe');
+            iframe.src = url;
+
+            setTimeout(hideLoading, 16000); 
+        }
+
+
+        document.getElementById('ponto_medicao').addEventListener('change', function () {
+            const pontoId = this.value;
+            const serieSelect = document.getElementById('serie_id');
+            const seriesCheckboxContainer = document.getElementById('series_checkboxes');
+            const selectedSerieIds = JSON.parse(document.getElementById('selected-serie-ids').textContent || '[]');
+
+            serieSelect.innerHTML = '<option value="">Carregando...</option>';
+            
+
+            seriesCheckboxContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0; font-size: 12px;">Carregando...</p>';
+
+            if (!pontoId) {
+                serieSelect.innerHTML = '<option value="">Selecione um ponto primeiro</option>';
+                seriesCheckboxContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0; font-size: 12px;">Selecione um ponto primeiro</p>';
+                return;
+            }
+
+            
+            loadSeriesForPoint(pontoId, (series) => {
+                
+                serieSelect.innerHTML = '<option value="">Selecione</option>';
+                const selectedSeriesFromContext = Object.keys(seriesData);
+                const singleSelectedId = selectedSeriesFromContext.length === 1 ? selectedSeriesFromContext[0] : null;
+                
+                series.forEach(serie => {
+                    const option = document.createElement('option');
+                    option.value = serie.id;
+                    option.textContent = serie.nome;
+
+                    if (singleSelectedId && serie.id == singleSelectedId) {
+                        option.selected = true;
+                    }
+                    serieSelect.appendChild(option);
+                });
+
+                
+                seriesCheckboxContainer.innerHTML = '';
+                if (series.length === 0) {
+                    seriesCheckboxContainer.innerHTML = '<p style="color: #666; font-style: italic; margin: 0; font-size: 12px;">Nenhuma série encontrada</p>';
+                } else {
+                    series.forEach(serie => {
+                        const div = document.createElement('div');
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = 'serie_ids';
+                        checkbox.value = serie.id;
+                        checkbox.id = `serie_${serie.id}`;
+                        
+                        if (selectedSerieIds && selectedSerieIds.includes(serie.id.toString())) {
+                            checkbox.checked = true;
+                        }
+
+                        
+                        checkbox.addEventListener('change', function() {
+                            if (this.checked) {
+                                handleSeriesCheckboxChange();
+                            } else {
+                                
+                                clearYearsForSeries(this.value);
+                                handleSeriesCheckboxChange();
+                            }
+                        });
+
+                        const label = document.createElement('label');
+                        label.htmlFor = `serie_${serie.id}`;
+                        label.textContent = serie.nome;
+
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        seriesCheckboxContainer.appendChild(div);
+                    });
+                    
+                    if (document.getElementById('comparison_mode').checked) {
+                        setTimeout(() => {
+                            updateSeriesYearSelectors();
+                        }, 100);
+                    }
+                }
+            });
+        });
+
+        
+        function populateComparisonCountTable() {
+            const table = document.getElementById('comparison-count-table');
+            if (!table || !comparisonMode || Object.keys(seriesData).length <= 1) {
+                return;
+            }
+
+            const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            const seriesArray = Object.keys(seriesData).map(key => seriesData[key]);
+            const header = document.getElementById('comparison-count-header');
+            const body = document.getElementById('comparison-count-body');
+
+            
+            header.innerHTML = '';
+            body.innerHTML = '';
+
+            
+            const headerRow = document.createElement('tr');
+            headerRow.appendChild(document.createElement('th')).textContent = 'Mês';
+            
+            seriesArray.forEach(series => {
+                const th = document.createElement('th');
+                const selectedYear = series.selected_year || 'N/A';
+                
+                const maxLength = 20; 
+                let displayName = `${series.serie.nome} (${selectedYear})`;
+                if (displayName.length > maxLength) {
+                    displayName = series.serie.nome.substring(0, maxLength - 8) + `... (${selectedYear})`;
+                    th.title = `${series.serie.nome} (${selectedYear})`; 
+                } else {
+                    th.textContent = displayName;
+                }
+                if (!th.textContent) th.textContent = displayName;
+                headerRow.appendChild(th);
+            });
+
+            
+            if (seriesArray.length === 2) {
+                const th = document.createElement('th');
+                th.textContent = 'Variação (%)';
+                const series1Year = seriesArray[1].selected_year || 'N/A';
+                const series0Year = seriesArray[0].selected_year || 'N/A';
+                th.title = `${seriesArray[1].serie.nome} (${series1Year}) vs ${seriesArray[0].serie.nome} (${series0Year})`;
+                headerRow.appendChild(th);
+            } else if (seriesArray.length > 2) {
+                
+                for (let i = 1; i < seriesArray.length; i++) {
+                    const th = document.createElement('th');
+                    th.textContent = `Var. ${i} (%)`;
+                    const seriesIYear = seriesArray[i].selected_year || 'N/A';
+                    const series0Year = seriesArray[0].selected_year || 'N/A';
+                    th.title = `${seriesArray[i].serie.nome} (${seriesIYear}) vs ${seriesArray[0].serie.nome} (${series0Year})`;
+                    headerRow.appendChild(th);
+                }
+            }
+
+            header.appendChild(headerRow);
+
+            
+            for (let month = 0; month < 12; month++) {
+                const row = document.createElement('tr');
+                
+                
+                const monthCell = document.createElement('td');
+                monthCell.textContent = monthNames[month];
+                row.appendChild(monthCell);
+
+                
+                const counts = [];
+                seriesArray.forEach(series => {
+                    const countCell = document.createElement('td');
+                    const count = series.month_counts[month] || 0;
+                    countCell.textContent = count;
+                    counts.push(count);
+                    row.appendChild(countCell);
+                });
+
+                
+                if (seriesArray.length === 2) {
+                    const percentageCell = document.createElement('td');
+                    percentageCell.className = 'percentage-change';
+                    
+                    const baseCount = counts[0];
+                    const compareCount = counts[1];
+                    
+                    if (baseCount === 0 && compareCount === 0) {
+                        percentageCell.textContent = '-';
+                        percentageCell.className += ' percentage-neutral';
+                    } else if (baseCount === 0) {
+                        percentageCell.textContent = '+∞';
+                        percentageCell.className += ' percentage-positive';
+                    } else {
+                        const percentage = ((compareCount - baseCount) / baseCount * 100).toFixed(1);
+                        percentageCell.textContent = `${percentage > 0 ? '+' : ''}${percentage}%`;
+                        
+                        if (percentage > 0) {
+                            percentageCell.className += ' percentage-positive';
+                        } else if (percentage < 0) {
+                            percentageCell.className += ' percentage-negative';
+                        } else {
+                            percentageCell.className += ' percentage-neutral';
+                        }
+                    }
+                    
+                    row.appendChild(percentageCell);
+                } else if (seriesArray.length > 2) {
+                    
+                    for (let i = 1; i < counts.length; i++) {
+                        const percentageCell = document.createElement('td');
+                        percentageCell.className = 'percentage-change';
+                        
+                        const baseCount = counts[0];
+                        const compareCount = counts[i];
+                        
+                        if (baseCount === 0 && compareCount === 0) {
+                            percentageCell.textContent = '-';
+                            percentageCell.className += ' percentage-neutral';
+                        } else if (baseCount === 0) {
+                            percentageCell.textContent = '+∞';
+                            percentageCell.className += ' percentage-positive';
+                        } else {
+                            const percentage = ((compareCount - baseCount) / baseCount * 100).toFixed(1);
+                            percentageCell.textContent = `${percentage > 0 ? '+' : ''}${percentage}%`;
+                            
+                            if (percentage > 0) {
+                                percentageCell.className += ' percentage-positive';
+                            } else if (percentage < 0) {
+                                percentageCell.className += ' percentage-negative';
+                            } else {
+                                percentageCell.className += ' percentage-neutral';
+                            }
+                        }
+                        
+                        row.appendChild(percentageCell);
+                    }
+                }
+
+                body.appendChild(row);
+            }
+        }
+
+        function initializeFormState() {
+
+            const yearSelect = document.getElementById('year');
+            if (yearSelect && yearSelect.options.length === 0) {
+
+                const allYearsSet = new Set();
+                Object.keys(seriesData).forEach(seriesKey => {
+                    const series = seriesData[seriesKey];
+                    if (series.all_available_years) {
+                        series.all_available_years.forEach(year => allYearsSet.add(year));
+                    } else if (series.years) {
+                        series.years.forEach(year => allYearsSet.add(year));
+                    }
+                });
+                
+                if (allYearsSet.size > 0) {
+                    const sortedYears = Array.from(allYearsSet).sort();
+                    sortedYears.forEach(year => {
+                        const option = document.createElement('option');
+                        option.value = year;
+                        option.textContent = year;
+                        yearSelect.appendChild(option);
+                    });
+                }
+            }
+            
+
+            const pontoSelect = document.getElementById('ponto_medicao');
+            if (pontoSelect.value) {
+
+                setTimeout(() => {
+                    pontoSelect.dispatchEvent(new Event('change'));
+                }, 100);
+            }
+
+
+            const comparisonCheckbox = document.getElementById('comparison_mode');
+            if (comparisonMode) {
+                comparisonCheckbox.checked = true;
+
+                comparisonCheckbox.dispatchEvent(new Event('change'));
+                
+                setTimeout(() => {
+                    updateSeriesYearSelectors();
+                    
+                    const checkedSeries = document.querySelectorAll('input[name="serie_ids"]:checked');
+                    if (checkedSeries.length > 0) {
+                        autoFillYears();
+                    }
+                }, 500);
+            }
+
+
+            if (comparisonMode && Object.keys(seriesData).length > 1) {
+                setTimeout(() => {
+                    populateComparisonCountTable();
+                }, 600);
+            }
+        }
+
+        
+        document.addEventListener('DOMContentLoaded', initializeFormState);
+        
+        
+        window.addEventListener('load', initializeFormState);
+
+        
+
+        
+        function createLinhaCharts() {
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+            
+            
+            if (comparisonMode && Object.keys(comparisonLineChartData).length > 0) {
+                createComparisonLinhaCharts();
+                return;
+            }
+            
+            
+            if (linhaTemporalLabels.length > 0) {
+                const linhaDiariaConfig = {
+                    type: 'line',
+                    data: {
+                        labels: linhaTemporalLabels,
+                        datasets: [{
+                            label: 'Caudal Médio Diário (m³/s)',
+                            data: linhaTemporalValores,
+                            fill: false,
+                            borderColor: 'rgba(0, 123, 255, 0.8)',
+                            backgroundColor: 'rgba(0, 123, 255, 0.3)',
+                            tension: 0,
+                            pointRadius: 0.7,
+                            borderWidth: 1.5,
+                            spanGaps:false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            zoom: zoomConfigX,
+                            tooltip: { mode: 'index', intersect: false },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { boxWidth: 20, padding: 10, color: textColor }
+                            },
+                        },
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: { display: true, text: 'Data (Dia)', color: textColor },
+                                ticks: {
+                                    maxTicksLimit: 15,
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    color: textColor
+                                }
+                            },
+                            y: {
+                                title: { display: true, text: 'Caudal (m³/s)', color: textColor },
+                                beginAtZero: true,
+                                ticks: { color: textColor }
+                            }
+                        }
+                    }
+                };
+                
+                const linhaDiariaCanvas = document.getElementById('linhaDiariaChart');
+                if (linhaDiariaCanvas) {
+                    if (chartInstances['linhaDiariaChart']) {
+                        chartInstances['linhaDiariaChart'].destroy();
+                    }
+                    chartInstances['linhaDiariaChart'] = new Chart(linhaDiariaCanvas.getContext('2d'), linhaDiariaConfig);
+                }
+            }
+            
+            
+            if (linhaTemporalLabelsT.length > 0) {
+                const linhaDiariaTConfig = {
+                    type: 'line',
+                    data: {
+                        labels: linhaTemporalLabelsT,
+                        datasets: [{
+                            label: 'Caudal (m³/s) - Todos os Instantes',
+                            data: linhaTemporalValoresT,
+                            fill: false,
+                            borderColor: 'rgba(220, 53, 69, 0.8)',
+                            backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                            tension: 0,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            borderWidth: 1.5,
+                            spanGaps: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: {
+                            decimation: {
+                                enabled: true,
+                                algorithm: 'lttb',
+                                samples: 2000
+                            },
+                            zoom: zoomConfigXTime,
+                            tooltip: { 
+                                mode: 'nearest', 
+                                intersect: false,
+                                animation: false
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { boxWidth: 20, padding: 10, color: textColor }
+                            },
+                        },
+                        elements: {
+                            point: {
+                                radius: 0,
+                                hoverRadius: 0
+                            },
+                            line: {
+                                borderWidth: 1.5
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: { display: true, text: 'Timestamp (Todos os Instantes)', color: textColor },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    color: textColor,
+                                    callback: function(value, index, values) {
+                                        
+                                        const totalTicks = values.length;
+                                        const showEvery = Math.ceil(totalTicks / 10);
+                                        if (index % showEvery === 0) {
+                                            return this.getLabelForValue(value);
+                                        }
+                                        return '';
+                                    }
+                                }
+                            },
+                            y: {
+                                title: { display: true, text: 'Caudal (m³/s)', color: textColor },
+                                beginAtZero: true,
+                                ticks: { 
+                                    color: textColor,
+                                    maxTicksLimit: 8
+                                }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'nearest'
+                        },
+                        onHover: function(event, activeElements) {
+                            if (event.native) {
+                                event.native.preventDefault();
+                            }
+                        }
+                    }
+                };
+                
+                const linhaDiariaTCanvas = document.getElementById('linhaDiariaChartT');
+                if (linhaDiariaTCanvas) {
+                    if (chartInstances['linhaDiariaChartT']) {
+                        chartInstances['linhaDiariaChartT'].destroy();
+                    }
+                    chartInstances['linhaDiariaChartT'] = new Chart(linhaDiariaTCanvas.getContext('2d'), linhaDiariaTConfig);
+                    
+                    
+                    linhaDiariaTCanvas.addEventListener('wheel', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }, { passive: false });
+                }
+            }
+        }
+
+        
+        function createComparisonLinhaCharts() {
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#ffffff' : '#000000';
+            
+            const colorPalette = [
+                '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500',
+                '#e76f51', '#2a9d8f', '#264653', '#f4a261', '#e9c46a', '#8338ec'
+            ];
+            
+            
+            const dailyDatasets = [];
+            const allDailyLabels = new Set();
+            let colorIndex = 0;
+
+            Object.keys(comparisonLineChartData).forEach(serieYearKey => {
+                const serieInfo = comparisonLineChartData[serieYearKey];
+                const serieData = serieInfo.data;
+                const label = `${serieInfo.serie_name} (${serieInfo.year}) - Médias Diárias`;
+                const color = colorPalette[colorIndex % colorPalette.length];
+                
+                
+                if (serieData.labels && serieData.labels.length > 0) {
+                    
+                    const dailyAggregated = {};
+                    
+                    serieData.labels.forEach((timestamp, index) => {
+                        const date = new Date(timestamp).toDateString(); 
+                        if (!dailyAggregated[date]) {
+                            dailyAggregated[date] = { values: [], timestamp: timestamp };
+                        }
+                        if (serieData.values[index] !== null && !isNaN(serieData.values[index])) {
+                            dailyAggregated[date].values.push(serieData.values[index]);
+                        }
+                    });
+                    
+                    
+                    const dailyData = [];
+                    const dailyLabels = [];
+                    
+                    Object.keys(dailyAggregated).sort().forEach(date => {
+                        const dayData = dailyAggregated[date];
+                        if (dayData.values.length > 0) {
+                            const avgValue = dayData.values.reduce((a, b) => a + b, 0) / dayData.values.length;
+                            dailyData.push(avgValue);
+                            dailyLabels.push(new Date(date).toISOString().split('T')[0]); 
+                            allDailyLabels.add(new Date(date).toISOString().split('T')[0]);
+                        }
+                    });
+                    
+                    dailyDatasets.push({
+                        label: label,
+                        data: dailyData,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                        spanGaps: false
+                    });
+                }
+                
+                colorIndex++;
+            });
+
+            
+            if (dailyDatasets.length > 0) {
+                const sortedDailyLabels = Array.from(allDailyLabels).sort();
+                
+                const comparisonDailyConfig = {
+                    type: 'line',
+                    data: {
+                        labels: sortedDailyLabels,
+                        datasets: dailyDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            zoom: zoomConfigX,
+                            tooltip: { mode: 'index', intersect: false },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { boxWidth: 20, padding: 10, color: textColor }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Médias Diárias - Comparação',
+                                font: { size: 18 },
+                                color: textColor
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: { display: true, text: 'Data (Médias Diárias)', color: textColor },
+                                ticks: {
+                                    maxTicksLimit: 15,
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    color: textColor
+                                }
+                            },
+                            y: {
+                                title: { display: true, text: 'Caudal Médio Diário (m³/s)', color: textColor },
+                                beginAtZero: true,
+                                ticks: { color: textColor }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        }
+                    }
+                };
+
+                const linhaDiariaCanvas = document.getElementById('linhaDiariaChart');
+                if (linhaDiariaCanvas) {
+                    if (chartInstances['linhaDiariaChart']) {
+                        chartInstances['linhaDiariaChart'].destroy();
+                    }
+                    chartInstances['linhaDiariaChart'] = new Chart(linhaDiariaCanvas.getContext('2d'), comparisonDailyConfig);
+                }
+            }
+
+            
+            const completeDatasets = [];
+            const allCompleteLabels = new Set();
+            colorIndex = 0; 
+
+            
+            Object.keys(comparisonLineChartData).forEach(serieYearKey => {
+                const serieInfo = comparisonLineChartData[serieYearKey];
+                const serieData = serieInfo.data;
+                const label = `${serieInfo.serie_name} (${serieInfo.year}) - Todos os Instantes`;
+                const color = colorPalette[colorIndex % colorPalette.length];
+                
+                
+                if (serieData.labels && serieData.labels.length > 0) {
+                    serieData.labels.forEach(label => allCompleteLabels.add(label));
+                    
+                    completeDatasets.push({
+                        label: label,
+                        data: serieData.values || [],
+                        borderColor: color,
+                        backgroundColor: color + '10',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        spanGaps: false
+                    });
+                }
+                
+                colorIndex++;
+            });
+
+            const linhaDiariaTCanvas = document.getElementById('linhaDiariaChartT');
+            if (linhaDiariaTCanvas && completeDatasets.length > 0) {
+                const sortedCompleteLabels = Array.from(allCompleteLabels).sort();
+                
+                const completeTConfig = {
+                    type: 'line',
+                    data: {
+                        labels: sortedCompleteLabels,
+                        datasets: completeDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: {
+                            decimation: {
+                                enabled: true,
+                                algorithm: 'lttb',
+                                samples: 2000
+                            },
+                            zoom: zoomConfigXTime,
+                            tooltip: { 
+                                mode: 'nearest', 
+                                intersect: false,
+                                animation: false
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { boxWidth: 20, padding: 10, color: textColor }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Dados Completos - Comparação (Todos os Instantes)',
+                                font: { size: 18 },
+                                color: textColor
+                            }
+                        },
+                        elements: {
+                            point: {
+                                radius: 0,
+                                hoverRadius: 0
+                            },
+                            line: {
+                                borderWidth: 1.5
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: { display: true, text: 'Timestamp (Todos os Instantes)', color: textColor },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    color: textColor,
+                                    callback: function(value, index, values) {
+                                        
+                                        const totalTicks = values.length;
+                                        const showEvery = Math.ceil(totalTicks / 10);
+                                        if (index % showEvery === 0) {
+                                            return this.getLabelForValue(value);
+                                        }
+                                        return '';
+                                    }
+                                }
+                            },
+                            y: {
+                                title: { display: true, text: 'Caudal (m³/s)', color: textColor },
+                                beginAtZero: true,
+                                ticks: { 
+                                    color: textColor,
+                                    maxTicksLimit: 8
+                                }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'nearest'
+                        },
+                        onHover: function(event, activeElements) {
+                            if (event.native) {
+                                event.native.preventDefault();
+                            }
+                        }
+                    }
+                };
+
+                if (chartInstances['linhaDiariaChartT']) {
+                    chartInstances['linhaDiariaChartT'].destroy();
+                }
+                chartInstances['linhaDiariaChartT'] = new Chart(linhaDiariaTCanvas.getContext('2d'), completeTConfig);
+                
+                
+                linhaDiariaTCanvas.addEventListener('wheel', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+            }
+        }
+        
+        
+        createLinhaCharts();
+        
+        
+        
+        function autoFillDates() {
+            let allLabels = [];
+            
+            
+            if (comparisonMode && Object.keys(comparisonLineChartData).length > 0) {
+                
+                Object.keys(comparisonLineChartData).forEach(serieYearKey => {
+                    const serieInfo = comparisonLineChartData[serieYearKey];
+                    if (serieInfo.data && serieInfo.data.labels) {
+                        allLabels = allLabels.concat(serieInfo.data.labels);
+                    }
+                });
+            } else if (linhaTemporalLabelsT && linhaTemporalLabelsT.length > 0) {
+                
+                allLabels = linhaTemporalLabelsT;
+            }
+            
+            if (allLabels.length > 0) {
+                
+                const validDates = allLabels.map(label => new Date(label)).filter(date => !isNaN(date.getTime()));
+                
+                if (validDates.length > 0) {
+                    const sortedDates = validDates.sort((a, b) => a - b);
+                    const firstDate = sortedDates[0];
+                    const lastDate = sortedDates[sortedDates.length - 1];
+                    
+                    document.getElementById("startDate").value = firstDate.toISOString().split('T')[0];
+                    document.getElementById("endDate").value = lastDate.toISOString().split('T')[0];
+                    
+                    document.getElementById("startTime").value = firstDate.toTimeString().slice(0, 5);
+                    document.getElementById("endTime").value = lastDate.toTimeString().slice(0, 5);
+                }
+            }
+        }
+
+        function calcularEstatisticas() {
+            const startDateValue = document.getElementById("startDate").value;
+            const startTimeValue = document.getElementById("startTime").value;
+            const endDateValue = document.getElementById("endDate").value;
+            const endTimeValue = document.getElementById("endTime").value;
+            
+            if (!startDateValue || !endDateValue) {
+                document.getElementById("resultadoEstatisticas").innerHTML = '<p style="color: red;">Por favor, selecione pelo menos as datas de início e fim.</p>';
+                return;
+            }
+            
+            const startDateTime = startTimeValue ? 
+                `${startDateValue}T${startTimeValue}:00` : 
+                `${startDateValue}T00:00:00`;
+            
+            const endDateTime = endTimeValue ? 
+                `${endDateValue}T${endTimeValue}:59` : 
+                `${endDateValue}T23:59:59`;
+            
+            const start = new Date(startDateTime);
+            const end = new Date(endDateTime);
+            
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                document.getElementById("resultadoEstatisticas").innerHTML = '<p style="color: red;">Datas inválidas. Por favor, verifique os valores inseridos.</p>';
+                return;
+            }
+            
+            if (start >= end) {
+                document.getElementById("resultadoEstatisticas").innerHTML = '<p style="color: red;">A data de início deve ser anterior à data de fim.</p>';
+                return;
+            }
+
+            const formatPeriod = () => {
+                const startStr = startTimeValue ? 
+                    start.toLocaleDateString() + ' ' + start.toLocaleTimeString().slice(0, 5) :
+                    start.toLocaleDateString();
+                
+                const endStr = endTimeValue ? 
+                    end.toLocaleDateString() + ' ' + end.toLocaleTimeString().slice(0, 5) :
+                    end.toLocaleDateString();
+                
+                return `${startStr} até ${endStr}`;
+            };
+
+            let resultHTML = `<h4 style="margin-bottom: 1rem; color: #007bff;">📊 Estatísticas do Intervalo</h4>`;
+            resultHTML += `<p><strong>Período:</strong> ${formatPeriod()}</p>`;
+
+            
+            if (comparisonMode && Object.keys(comparisonLineChartData).length > 0) {
+                resultHTML += `<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;">`;
+                
+                
+                Object.keys(comparisonLineChartData).forEach(serieYearKey => {
+                    const serieInfo = comparisonLineChartData[serieYearKey];
+                    const serieData = serieInfo.data;
+                    const serieName = `${serieInfo.serie_name} (${serieInfo.year})`;
+                    
+                    if (serieData.labels && serieData.values) {
+                        const dados = [];
+                        
+                        
+                        for (let i = 0; i < serieData.labels.length; i++) {
+                            const timestamp = new Date(serieData.labels[i]);
+                            const value = serieData.values[i];
+                            
+                            if (!isNaN(timestamp.getTime()) && 
+                                timestamp >= start && 
+                                timestamp <= end && 
+                                value !== null && 
+                                value !== undefined && 
+                                !isNaN(value)) {
+                                dados.push(value);
+                            }
+                        }
+
+                        if (dados.length > 0) {
+                            const media = dados.reduce((a, b) => a + b, 0) / dados.length;
+                            const max = Math.max(...dados);
+                            const min = Math.min(...dados);
+                            const variancia = dados.reduce((a, b) => a + Math.pow(b - media, 2), 0) / dados.length;
+                            const desvioPadrao = Math.sqrt(variancia);
+                            const dadosOrdenados = [...dados].sort((a, b) => a - b);
+                            const mediana = dadosOrdenados[Math.floor(dadosOrdenados.length / 2)];
+
+                            resultHTML += `
+                                <div style="
+                                    background-color: #f8f9fa;
+                                    border: 2px solid #0077b6;
+                                    border-radius: 8px;
+                                    padding: 1rem;
+                                    margin: 10px;
+                                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                                    flex: 1;
+                                    min-width: 300px;
+                                ">
+                                    <h5 style="margin-bottom: 0.5rem; color: #0077b6;">${serieName}</h5>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
+                                        <p><strong>Total:</strong> ${dados.length.toLocaleString()}</p>
+                                        <p><strong>Média:</strong> ${media.toFixed(3)} m³/s</p>
+                                        <p><strong>Máximo:</strong> ${max.toFixed(3)} m³/s</p>
+                                        <p><strong>Mínimo:</strong> ${min.toFixed(3)} m³/s</p>
+                                        <p><strong>Mediana:</strong> ${mediana.toFixed(3)} m³/s</p>
+                                        <p><strong>Amplitude:</strong> ${(max - min).toFixed(3)} m³/s</p>
+                                        <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toFixed(3)} m³/s</p>
+                                        <p><strong>Variância:</strong> ${variancia.toFixed(3)} (m³/s)²</p>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            resultHTML += `
+                                <div style="
+                                    background-color: #fff3cd;
+                                    border: 2px solid #ffc107;
+                                    border-radius: 8px;
+                                    padding: 1rem;
+                                    margin: 10px;
+                                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                                    flex: 1;
+                                    min-width: 300px;
+                                ">
+                                    <h5 style="margin-bottom: 0.5rem; color: #856404;">${serieName}</h5>
+                                    <p style="color: #856404; font-style: italic;">Nenhum dado encontrado no período selecionado.</p>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+                
+                resultHTML += `</div>`; 
+            } else {
+                
+                const dados = [];
+                
+                
+                if (linhaTemporalLabelsT && linhaTemporalValoresT && 
+                    linhaTemporalLabelsT.length === linhaTemporalValoresT.length) {
+                    
+                    for (let i = 0; i < linhaTemporalLabelsT.length; i++) {
+                        const timestamp = new Date(linhaTemporalLabelsT[i]);
+                        const value = linhaTemporalValoresT[i];
+                        
+                        if (!isNaN(timestamp.getTime()) && 
+                            timestamp >= start && 
+                            timestamp <= end && 
+                            value !== null && 
+                            value !== undefined && 
+                            !isNaN(value)) {
+                            dados.push(value);
+                        }
+                    }
+                }
+
+                if (dados.length > 0) {
+                    const media = dados.reduce((a, b) => a + b, 0) / dados.length;
+                    const max = Math.max(...dados);
+                    const min = Math.min(...dados);
+                    const variancia = dados.reduce((a, b) => a + Math.pow(b - media, 2), 0) / dados.length;
+                    const desvioPadrao = Math.sqrt(variancia);
+                    const dadosOrdenados = [...dados].sort((a, b) => a - b);
+                    const mediana = dadosOrdenados[Math.floor(dadosOrdenados.length / 2)];
+
+                    resultHTML += `
+                        <div style="
+                            background-color: #f8f9fa;
+                            border: 1px solid #ced4da;
+                            border-radius: 8px;
+                            padding: 1rem;
+                            margin: 10px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                            max-width: 500px;
+                        ">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
+                                <p><strong>Total:</strong> ${dados.length.toLocaleString()}</p>
+                                <p><strong>Média:</strong> ${media.toFixed(3)} m³/s</p>
+                                <p><strong>Máximo:</strong> ${max.toFixed(3)} m³/s</p>
+                                <p><strong>Mínimo:</strong> ${min.toFixed(3)} m³/s</p>
+                                <p><strong>Mediana:</strong> ${mediana.toFixed(3)} m³/s</p>
+                                <p><strong>Amplitude:</strong> ${(max - min).toFixed(3)} m³/s</p>
+                                <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toFixed(3)} m³/s</p>
+                                <p><strong>Variância:</strong> ${variancia.toFixed(3)} (m³/s)²</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultHTML += `
+                        <div style="
+                            background-color: #fff3cd;
+                            border: 2px solid #ffc107;
+                            border-radius: 8px;
+                            padding: 1rem;
+                            margin: 10px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                            max-width: 500px;
+                        ">
+                            <p style="color: #856404; font-style: italic; margin: 0;">Nenhum dado encontrado no período selecionado.</p>
+                        </div>
+                    `;
+                }
+            }
+
+            document.getElementById("resultadoEstatisticas").innerHTML = `
+                <div style="
+                    background-color: #ffffff;
+                    border: 1px solid #ced4da;
+                    border-radius: 10px;
+                    padding: 1rem 1.5rem;
+                    margin-top: 1rem;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                    font-family: 'Segoe UI', sans-serif;
+                    color: #343a40;
+                    max-width: 600px;
+                ">
+                    ${resultHTML}
+                </div>
+            `;
+        }
+    </script>
+    <iframe id="download_iframe" style="display: none;"></iframe>
+
+</body>
+</html>

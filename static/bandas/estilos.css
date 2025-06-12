@@ -1,0 +1,104 @@
+ *{
+        font-family: "Montserrat", sans-serif;
+    }
+
+ body {
+        background: radial-gradient(circle ,#595959,#1a1a1a);/* Dark black background color */
+        margin: 0;
+        padding: 0;
+        color:white;
+        font-size:100%;
+        text-align:center;
+
+    }
+    header {
+        background-color:#1a1a1a;/* Dark gray for header background */
+        color: #ffffff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding:10px 20px;
+        margin:0%;
+        border-radius:4px;
+        position:sticky;
+
+    }
+
+    nav {
+        display: flex;
+        aligned-items:center;
+    }
+
+
+
+    .nav-left a,
+    .nav-right a {
+        background-color:#1a1a1a
+        border: none;
+        color:white ;
+        padding: 2px 5px;
+        margin-top:2px;
+        text-align: center;
+        text-decoration: none;
+        border-radius: 4%;
+        font-size:2vh;
+    }
+
+.nav-left {
+        display: flex;
+        gap: 10px;
+
+
+    }
+    .nav-left a:hover,
+    .nav-right a:hover {
+        background-color: #444; /* Even darker gray on hover */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .nav-left a:active,
+    .nav-right a:active {
+        background-color: #666; /* Dark gray on click */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-right {
+        margin-left:auto;
+    }
+
+    #titulo{
+        padding:0 ;
+        margin:0vh;
+        position:relative;
+        top:0;
+        font-size:4vh;
+        text-align:center;
+
+    }
+
+    a{
+        color:white;
+        text-decoration:none;
+
+
+    }
+.nav-left a {
+    display:flex;
+    align-items: center;
+    gap: 5px; /* Adjust the gap as needed */
+    background-color: #1a1a1a;
+    border: none;
+    color: white;
+    padding: 2px 5px;
+    margin-top: 2px;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 4%;
+    font-size: 2vh;
+    margin-left:0vw;
+}
+
+ svg {
+    width: 2.5vh; /* Adjust the width of the icon */
+    height: 2.5vh; /* Adjust the height of the icon */
+    fill:#FFD700;
+}
+

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h3>Bem-vindo, {{request.user.first_name}} {{request.user.last_name}}</h3>
+
+<ul>
+    <li>Username: {{request.user.username}}</li>
+    <li>First Name: {{request.user.first_name}}</li>
+    <li>Last Name: {{request.user.last_name}}</li>
+    <li>Is Active: {{request.user.is_active}}</li>
+    <li>Is Super User: {{request.user.is_superuser}}</li>
+    <li>Email: {{request.user.email}}</li>
+</ul>
+
+<div class="text-center mt-3">
+    <a href="{% url 'caudais:dashboard' %}" class="btn">
+        <i class="fas fa-tint"></i> Ir para Dashboard de Caudais
+    </a>
+</div>
+
+{% endblock %}

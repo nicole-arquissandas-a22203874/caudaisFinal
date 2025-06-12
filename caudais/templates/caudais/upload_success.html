@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Concluído</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        :root {
+            --azul-primario: #0077b6;
+            --azul-claro: #caf0f8;
+            --azul-medio: #90e0ef;
+            --cinza-fundo: #f8f9fa;
+            --cinza-texto: #333;
+            --verde-sucesso: #28a745;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--cinza-fundo);
+            margin: 0;
+            padding: 20px;
+            color: var(--cinza-texto);
+        }
+
+        .success-container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 119, 182, 0.15);
+            text-align: center;
+        }
+
+        .success-icon {
+            font-size: 60px;
+            color: var(--verde-sucesso);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--azul-primario);
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #155724;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--azul-primario);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #023e8a;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: var(--azul-medio);
+            color: black;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--azul-claro);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--azul-primario);
+            border: 2px solid var(--azul-primario);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--azul-primario);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .user-info {
+            position: fixed;
+            top: 15px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            background: white;
+            padding: 8px 14px;
+            border-radius: 25px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            z-index: 9999;
+        }
+
+        .user-info a {
+            color: var(--azul-primario);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .user-info a:hover {
+            text-decoration: underline;
+        }
+
+        .user-info i {
+            margin-right: 6px;
+        }
+
+        @media (max-width: 600px) {
+            .navigation-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="user-info">
+        {% if request.user.is_authenticated %}
+            <span>
+                <i class="fas fa-user-circle"></i> {{ request.user.username }}
+            </span>
+            <a href="{% url 'autenticacao:logout' %}">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        {% else %}
+            <a href="{% url 'autenticacao:login' %}">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+        {% endif %}
+    </div>
+
+    <div class="success-container">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        
+        <h1>Upload Concluído com Sucesso!</h1>
+        
+        <div class="success-message">
+            <i class="fas fa-info-circle"></i>
+            {{ message }}
+        </div>
+
+        <div class="navigation-buttons">
+            <a href="{% url 'caudais:dashboard' %}" class="btn btn-primary">
+                <i class="fas fa-chart-bar"></i>
+                Ver Dashboard
+            </a>
+            
+            <a href="{% url 'caudais:upload_novo_ponto' %}" class="btn btn-secondary">
+                <i class="fas fa-upload"></i>
+                Novo Upload
+            </a>
+            
+            <a href="{% url 'caudais:upload_adicionar_valores' %}" class="btn btn-outline">
+                <i class="fas fa-plus"></i>
+                Adicionar Valores
+            </a>
+        </div>
+    </div>
+
+    <script>
+        setTimeout(function() {
+            const dashboardBtn = document.querySelector('.btn-primary');
+            if (dashboardBtn) {
+                dashboardBtn.style.backgroundColor = '#023e8a';
+                dashboardBtn.innerHTML = '<i class="fas fa-chart-bar"></i> Redirecionando... (' + 5 + 's)';
+                
+                let countdown = 5;
+                const countdownInterval = setInterval(function() {
+                    countdown--;
+                    dashboardBtn.innerHTML = '<i class="fas fa-chart-bar"></i> Redirecionando... (' + countdown + 's)';
+                    
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        window.location.href = '{% url "caudais:dashboard" %}';
+                    }
+                }, 1000);
+            }
+        }, 5000); // Countdown de 5 segundos
+    </script>
+</body>
+</html> 

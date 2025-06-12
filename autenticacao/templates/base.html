@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Caudais - Autenticação{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <style>
+        :root {
+            --azul-primario: #0077b6;
+            --azul-claro: #caf0f8;
+            --azul-medio: #90e0ef;
+            --cinza-fundo: #f8f9fa;
+            --cinza-texto: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--cinza-fundo);
+            margin: 0;
+            padding: 20px;
+            color: var(--cinza-texto);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            max-width: 500px;
+            margin: 50px auto;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 119, 182, 0.1);
+        }
+
+        h1, h2 {
+            color: var(--azul-primario);
+            text-align: center;
+        }
+
+        .btn {
+            background-color: var(--azul-primario);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background-color: #023e8a;
+        }
+
+        .btn-primary {
+            background-color: var(--azul-primario);
+        }
+
+        form {
+            margin: 20px 0;
+        }
+
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 15px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        label {
+            font-weight: 500;
+            color: var(--cinza-texto);
+        }
+
+        .errorlist {
+            color: #dc3545;
+            list-style: none;
+            padding: 0;
+            margin: 5px 0;
+        }
+
+        .errorlist li {
+            margin: 5px 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-3 {
+            margin-top: 20px;
+        }
+
+        a {
+            color: var(--azul-primario);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        ul li {
+            background-color: var(--azul-claro);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--azul-primario);
+        }
+
+        ul li a {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        ul li a i {
+            margin-right: 10px;
+            color: var(--azul-primario);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html> 

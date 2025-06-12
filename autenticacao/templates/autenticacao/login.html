@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Login</h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="background-color: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #c3e6cb;">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn btn-primary">Login</button>
+</form>
+<div class="text-center mt-3">
+    <p><a href="{% url 'autenticacao:password_reset' %}">Recuperar Password?</a></p>
+    <p>Não tem conta? <a href="{% url 'autenticacao:registar' %}"><strong>Registar-se aqui</strong></a></p>
+</div>
+{% endblock %}
