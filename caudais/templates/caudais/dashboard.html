@@ -452,6 +452,7 @@
     <div class="dropdown-menu" id="dropdownMenu">
         <a href="{% url 'caudais:upload_novo_ponto' %}"><i class="fas fa-upload"></i> Upload de Medições</a>
         <a href="#" onclick="exportarExcel()"><i class="fas fa-file-excel"></i> Exportar para Excel</a>
+        <a href="#" onclick="exportarPDF()"><i class="fas fa-file-pdf"></i> Exportar para PDF</a>
         <a href="#" onclick="toggleTheme()"><i class="fas fa-adjust"></i> Alternar Modo Claro/Escuro</a>
         <a href="{% url 'autenticacao:logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
@@ -620,17 +621,6 @@
         <div id="resultadoEstatisticas"></div>
     </div>
 
-    <div class="chart-container">
-        <h2>
-            {% if comparison_mode %}
-                Gráfico de Linha Diário - Comparação
-            {% else %}
-                Gráfico de Linha Diário - Ano {{ selected_year }}
-            {% endif %}
-        </h2>
-        <canvas id="linhaDiariaChart" height="100"></canvas>
-        <button onclick="resetZoom('linhaDiariaChart')">Redefinir Zoom</button>
-    </div>
     {% endif %}
 
     <iframe id="download_iframe" style="display: none;"></iframe>
@@ -696,6 +686,7 @@
     {{ line_chart_data|json_script:"line-chart-data" }}
     {{ comparison_boxplot_data|json_script:"comparison-boxplot-data" }}
     {{ comparison_line_chart_data|json_script:"comparison-line-chart-data" }}
+    {{ comparison_instantaneous_data|json_script:"comparison-instantaneous-data" }}
     {{ linha_temporal_labels|json_script:"linha-temporal-labels" }}
     {{ linha_temporal_valores|json_script:"linha-temporal-valores" }}
     {{ linha_temporal_labelsT|json_script:"linha-temporal-labelsT" }}
@@ -741,6 +732,7 @@
         const lineChartData = JSON.parse(document.getElementById('line-chart-data').textContent || '{}');
         const comparisonBoxplotData = JSON.parse(document.getElementById('comparison-boxplot-data').textContent || '{}');
         const comparisonLineChartData = JSON.parse(document.getElementById('comparison-line-chart-data').textContent || '{}');
+        const comparisonInstantaneousData = JSON.parse(document.getElementById('comparison-instantaneous-data').textContent || '{}');
         
         
         const linhaTemporalLabels = JSON.parse(document.getElementById('linha-temporal-labels').textContent || '[]');
@@ -839,13 +831,12 @@
             }
         };
 
-        // Custom zoom config for time-based charts to prevent page scrolling
         const zoomConfigXTime = {
             zoom: {
                 wheel: { 
                     enabled: true, 
                     speed: 0.1,
-                    modifierKey: null // Remove modifier key requirement
+                    modifierKey: null
                 },
                 pinch: { enabled: true },
                 drag: { enabled: true },
@@ -1004,7 +995,39 @@
                 datasets: datasets
             };
         }
+        
 
+
+//logica obtem so os anos da serie escolhida for single serie selector
+document.getElementById("serie_id").addEventListener("change", function () {
+    const serieId = this.value;
+    const yearSelect = document.getElementById("year");
+    const comparisonCheckbox = document.getElementById('comparison_mode');
+    // Limpar dropdown de anos
+    if(!comparisonCheckbox.checked){
+    yearSelect.innerHTML = '<option value="">carregando...</option>';
+
+    if (serieId) {
+        fetch(`/caudais/get_anos_por_serie/?serie_id=${serieId}`)
+            .then(response => response.json())
+            .then(data => {
+                yearSelect.innerHTML = '';
+                if (data.anos.length > 0) {
+                    data.anos.forEach(ano => {
+                        const opt = document.createElement("option");
+                        opt.value = ano;
+                        opt.text = ano;
+                        yearSelect.appendChild(opt);
+                    });
+                } else {
+                    yearSelect.innerHTML = '<option value="">Sem anos disponíveis</option>';
+                }
+            });
+    } else {
+        yearSelect.innerHTML = '<option value="">""</option>';
+    }
+}
+});
         
         function loadSeriesForPoint(pontoId, callback) {
             
@@ -2068,11 +2091,11 @@
                         data: lineChartData.values,
                         borderColor: '#0077b6',
                         backgroundColor: 'rgba(0, 119, 182, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
+                        borderWidth: 1.5,
+                        fill: false,
                         tension: 0.3,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointRadius: 1,
+                        pointHoverRadius: 2,
                         spanGaps: false  
                     }]
                 },
@@ -2095,7 +2118,7 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Data',
+                                text: 'Data (Dia)',
                                 color: textColor
                             },
                             ticks: { 
@@ -2130,84 +2153,76 @@
         function createComparisonDailyLineChart(comparisonData) {
             const isDark = document.body.classList.contains('dark-mode');
             const textColor = isDark ? '#ffffff' : '#000000';
-            
-            const datasets = [];
+
             const colorPalette = [
                 '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500',
                 '#e76f51', '#2a9d8f', '#264653', '#f4a261', '#e9c46a', '#8338ec'
             ];
-            
-            let colorIndex = 0;
-            let allLabels = new Set();
-            
-            
-            Object.keys(comparisonData).forEach(serieYearKey => {
-                const serieInfo = comparisonData[serieYearKey];
-                const serieData = serieInfo.data;
-                const label = `${serieInfo.serie_name} (${serieInfo.year})`;
-                const color = colorPalette[colorIndex % colorPalette.length];
-                
-                
-                if (serieData.labels && serieData.labels.length > 0) {
-                    serieData.labels.forEach(label => allLabels.add(label));
-                    
-                    
-                    datasets.push({
-                        label: label,
-                        data: serieData.values || [],
-                        borderColor: color,
-                        backgroundColor: color + '20',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        spanGaps: false
+
+            const seriesInfoList = [];
+            const allLabelsSet = new Set();
+
+            Object.keys(comparisonData).forEach(key => {
+                const info = comparisonData[key];
+                if (info && info.data && info.data.labels && info.data.labels.length > 0) {
+                    seriesInfoList.push({
+                        name: `${info.serie_name} (${info.year})`,
+                        labels: info.data.labels,
+                        values: info.data.values
                     });
+                    info.data.labels.forEach(lab => allLabelsSet.add(lab));
                 }
-                
-                colorIndex++;
             });
 
-            
-            const sortedLabels = Array.from(allLabels).sort();
+            if (seriesInfoList.length === 0) {
+                const container = document.querySelector('#dailyLineChart').parentElement;
+                if (container) container.style.display = 'none';
+                return;
+            }
+
+            const sortedLabels = Array.from(allLabelsSet).sort();
+
+            const datasets = seriesInfoList.map((serie, idx) => {
+                const mapLabelToValue = {};
+                serie.labels.forEach((lab, i) => { mapLabelToValue[lab] = serie.values[i]; });
+                const alignedValues = sortedLabels.map(lab =>
+                    mapLabelToValue.hasOwnProperty(lab) ? mapLabelToValue[lab] : null
+                );
+                const colour = colorPalette[idx % colorPalette.length];
+                return {
+                    label: serie.name,
+                    data: alignedValues,
+                    borderColor: colour,
+                    backgroundColor: colour + '20',
+                    borderWidth: 1.5,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    pointHoverRadius: 1,
+                    spanGaps: false
+                };
+            });
 
             const comparisonDailyConfig = {
                 type: 'line',
                 data: {
                     labels: sortedLabels,
-                    datasets: datasets,
-                    
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     plugins: {
-                        legend: {
-                            labels: {
-                                color: textColor
-                            }
-                        },
+                        legend: { labels: { color: textColor } },
                         zoom: zoomConfigX
                     },
                     scales: {
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Data',
-                                color: textColor
-                            },
-                            ticks: { 
-                                color: textColor,
-                                maxTicksLimit: 10
-                            }
+                            title: { display: true, text: 'Data', color: textColor },
+                            ticks: { color: textColor, maxTicksLimit: 10 }
                         },
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Caudal Médio Diário (m³/s)',
-                                color: textColor
-                            },
+                            title: { display: true, text: 'Caudal Médio Diário (m³/s)', color: textColor },
                             ticks: { color: textColor }
                         }
                     },
@@ -2218,8 +2233,11 @@
                 }
             };
 
+            if (chartInstances['dailyLineChart']) {
+                chartInstances['dailyLineChart'].destroy();
+            }
             chartInstances['dailyLineChart'] = new Chart(
-                document.getElementById('dailyLineChart').getContext('2d'), 
+                document.getElementById('dailyLineChart').getContext('2d'),
                 comparisonDailyConfig
             );
         }
@@ -2806,6 +2824,111 @@
             setTimeout(hideLoading, 16000); 
         }
 
+        // -------- PDF EXPORT ---------
+        function getCSRF() {
+            const name = 'csrftoken=';
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name)) {
+                    return cookie.substring(name.length);
+                }
+            }
+            return '';
+        }
+
+        function exportarPDF() {
+    showLoading();
+    try {
+        const chartIds = ['yearlyChart','monthlyAvgChart','monthlyTotalChart','boxplotChart','dailyLineChart','linhaDiariaChartT'];
+        const images = chartIds.map(id => {
+            const inst = chartInstances[id];
+            if (inst && inst.canvas) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const scale = 2;
+                canvas.width = inst.canvas.width * scale;
+                canvas.height = inst.canvas.height * scale;
+                
+                ctx.scale(scale, scale);
+                
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, inst.canvas.width, inst.canvas.height);
+                
+                ctx.drawImage(inst.canvas, 0, 0);
+                
+                return { name: id, data: canvas.toDataURL('image/png', 1.0) };
+            }
+            return null;
+        }).filter(Boolean);
+
+        const selectedSerieIds = [];
+        if (comparisonMode) {
+            document.querySelectorAll('input[name="serie_ids"]:checked').forEach(cb => {
+                selectedSerieIds.push(parseInt(cb.value));
+            });
+        } else {
+            const singleSerieSelect = document.getElementById('serie_id');
+            if (singleSerieSelect.value) {
+                selectedSerieIds.push(parseInt(singleSerieSelect.value));
+            }
+        }
+
+        const seriesYears = {};
+        if (comparisonMode) {
+            selectedSerieIds.forEach(serieId => {
+                const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]:checked`);
+                if (yearCheckboxes.length > 0) {
+                    seriesYears[serieId] = Array.from(yearCheckboxes).map(cb => parseInt(cb.value));
+                }
+            });
+        }
+
+        const payload = {
+            images: images,
+            serie_ids: selectedSerieIds,
+            comparison_mode: comparisonMode,
+            data_type: document.getElementById('data_type').value,
+            recon_method: document.getElementById('recon_method').value,
+            selected_year: document.getElementById('year').value ? parseInt(document.getElementById('year').value) : null,
+            series_years: seriesYears
+        };
+
+        fetch('/caudais/exportar_pdf/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRF()
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(resp => {
+            if (!resp.ok) throw new Error('Erro ao gerar PDF');
+            return resp.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'relatorio_dashboard.pdf';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            hideLoading();
+        })
+        .catch(err => {
+            console.error(err);
+            hideLoading();
+            alert('Falha ao exportar PDF: ' + err.message);
+        });
+    } catch (e) {
+        console.error(e);
+        hideLoading();
+        alert('Erro inesperado ao preparar PDF: ' + e.message);
+    }
+}
 
         document.getElementById('ponto_medicao').addEventListener('change', function () {
             const pontoId = this.value;
@@ -3126,7 +3249,7 @@
                             tension: 0,
                             pointRadius: 0.7,
                             borderWidth: 1.5,
-                            spanGaps:false
+                            spanGaps: false
                         }]
                     },
                     options: {
@@ -3408,48 +3531,58 @@
                 }
             }
 
+            const allInstantaneousLabels = new Set();
             
-            const completeDatasets = [];
-            const allCompleteLabels = new Set();
-            colorIndex = 0; 
-
-            
-            Object.keys(comparisonLineChartData).forEach(serieYearKey => {
-                const serieInfo = comparisonLineChartData[serieYearKey];
+            Object.keys(comparisonInstantaneousData).forEach(serieYearKey => {
+                const serieInfo = comparisonInstantaneousData[serieYearKey];
                 const serieData = serieInfo.data;
-                const label = `${serieInfo.serie_name} (${serieInfo.year}) - Todos os Instantes`;
-                const color = colorPalette[colorIndex % colorPalette.length];
-                
                 
                 if (serieData.labels && serieData.labels.length > 0) {
-                    serieData.labels.forEach(label => allCompleteLabels.add(label));
-                    
-                    completeDatasets.push({
-                        label: label,
-                        data: serieData.values || [],
-                        borderColor: color,
-                        backgroundColor: color + '10',
-                        borderWidth: 1.5,
-                        fill: false,
-                        tension: 0,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        spanGaps: false
+                    serieData.labels.forEach(label => allInstantaneousLabels.add(label));
+                }
+            });
+            
+            const sortedInstantaneousLabels = Array.from(allInstantaneousLabels).sort();
+            const combinedInstantaneousValues = new Array(sortedInstantaneousLabels.length).fill(null);
+            const instantaneousLabelToIndex = {};
+            sortedInstantaneousLabels.forEach((lab, idx) => { instantaneousLabelToIndex[lab] = idx; });
+            
+            
+            Object.values(comparisonInstantaneousData).forEach(info => {
+                const d = info.data;
+                if (d.labels && d.labels.length) {
+                    d.labels.forEach((lab, i) => {
+                        const idx = instantaneousLabelToIndex[lab];
+                        if (idx !== undefined) {
+                            const v = d.valores[i];  
+                            if (v !== null && v !== undefined && !isNaN(v)) {
+                                if (combinedInstantaneousValues[idx] === null) {
+                                    combinedInstantaneousValues[idx] = v;
+                                }
+                            }
+                        }
                     });
                 }
-                
-                colorIndex++;
             });
 
             const linhaDiariaTCanvas = document.getElementById('linhaDiariaChartT');
-            if (linhaDiariaTCanvas && completeDatasets.length > 0) {
-                const sortedCompleteLabels = Array.from(allCompleteLabels).sort();
-                
+            if (linhaDiariaTCanvas && sortedInstantaneousLabels.length > 0) {
                 const completeTConfig = {
                     type: 'line',
                     data: {
-                        labels: sortedCompleteLabels,
-                        datasets: completeDatasets
+                        labels: sortedInstantaneousLabels,
+                        datasets: [{
+                            label: 'Séries Combinadas - Todos os Instantes',
+                            data: combinedInstantaneousValues,
+                            borderColor: '#0077b6',
+                            backgroundColor: 'rgba(0,119,182,0.15)',
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            spanGaps: false
+                        }]
                     },
                     options: {
                         responsive: true,
@@ -3633,6 +3766,7 @@
             
             if (comparisonMode && Object.keys(comparisonLineChartData).length > 0) {
                 resultHTML += `<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;">`;
+                const combinedValues = [];
                 
                 
                 Object.keys(comparisonLineChartData).forEach(serieYearKey => {
@@ -3655,6 +3789,7 @@
                                 value !== undefined && 
                                 !isNaN(value)) {
                                 dados.push(value);
+                                combinedValues.push(value);
                             }
                         }
 
@@ -3679,6 +3814,7 @@
                                     min-width: 300px;
                                 ">
                                     <h5 style="margin-bottom: 0.5rem; color: #0077b6;">${serieName}</h5>
+                                    <p style="margin: 0 0 0.5rem 0; font-size: 12px; color: #6c757d;"><em>Período: ${formatPeriod()}</em></p>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
                                         <p><strong>Total:</strong> ${dados.length.toLocaleString()}</p>
                                         <p><strong>Média:</strong> ${media.toFixed(3)} m³/s</p>
@@ -3704,13 +3840,48 @@
                                     min-width: 300px;
                                 ">
                                     <h5 style="margin-bottom: 0.5rem; color: #856404;">${serieName}</h5>
+                                    <p style="margin-top: 0.3rem; font-size: 12px; color: #6c757d;"><em>Período: ${formatPeriod()}</em></p>
                                     <p style="color: #856404; font-style: italic;">Nenhum dado encontrado no período selecionado.</p>
                                 </div>
                             `;
                         }
                     }
                 });
-                
+
+                if (combinedValues.length > 0) {
+                    const mediaG = combinedValues.reduce((a, b) => a + b, 0) / combinedValues.length;
+                    const maxG = Math.max(...combinedValues);
+                    const minG = Math.min(...combinedValues);
+                    const varianciaG = combinedValues.reduce((a, b) => a + Math.pow(b - mediaG, 2), 0) / combinedValues.length;
+                    const desvioPadraoG = Math.sqrt(varianciaG);
+                    const ordenadosG = [...combinedValues].sort((a, b) => a - b);
+                    const medianaG = ordenadosG[Math.floor(ordenadosG.length / 2)];
+
+                    resultHTML += `
+                        <div style="
+                            background-color: #e9ecef;
+                            border: 2px dashed #343a40;
+                            border-radius: 8px;
+                            padding: 1rem;
+                            margin: 10px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                            flex: 1 1 100%;
+                            min-width: 300px;
+                        ">
+                            <h5 style="margin-bottom: 0.5rem; color: #343a40;">Estatísticas Globais (todas as séries)</h5>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
+                                <p><strong>Total:</strong> ${combinedValues.length.toLocaleString()}</p>
+                                <p><strong>Média:</strong> ${mediaG.toFixed(3)} m³/s</p>
+                                <p><strong>Máximo:</strong> ${maxG.toFixed(3)} m³/s</p>
+                                <p><strong>Mínimo:</strong> ${minG.toFixed(3)} m³/s</p>
+                                <p><strong>Mediana:</strong> ${medianaG.toFixed(3)} m³/s</p>
+                                <p><strong>Amplitude:</strong> ${(maxG - minG).toFixed(3)} m³/s</p>
+                                <p><strong>Desvio Padrão:</strong> ${desvioPadraoG.toFixed(3)} m³/s</p>
+                                <p><strong>Variância:</strong> ${varianciaG.toFixed(3)} (m³/s)²</p>
+                            </div>
+                        </div>
+                    `;
+                }
                 resultHTML += `</div>`; 
             } else {
                 
@@ -3799,6 +3970,143 @@
                 </div>
             `;
         }
+
+        // Para o relatorio!
+        function logReportData() {
+            try {
+                console.group('📊 Dashboard Data Report');
+
+                /* Anuais */
+                console.group('Yearly Trend');
+                if (comparisonMode && Object.keys(seriesData).length > 0) {
+                    Object.values(seriesData).forEach(serie => {
+                        const serieName = (serie.serie && serie.serie.nome) ? serie.serie.nome : `Serie ${serie.id}`;
+                        const yearlyTable = {};
+                        if (serie.years) {
+                            serie.years.forEach((year, idx) => {
+                                yearlyTable[year] = {
+                                    Total: serie.totals ? serie.totals[idx] : null,
+                                    Média: serie.avg_values ? serie.avg_values[idx] : null
+                                };
+                            });
+                        }
+                        console.log(`📈 ${serieName}`);
+                        console.table(yearlyTable);
+                    });
+                } else {
+                    const yearlyTable = {};
+                    if (Array.isArray(years)) {
+                        years.forEach((year, idx) => {
+                            yearlyTable[year] = {
+                                Total: totals[idx],
+                                Média: avgValues[idx]
+                            };
+                        });
+                    }
+                    console.table(yearlyTable);
+                }
+                console.groupEnd();
+
+                /* Mensais */
+                console.group('Monthly Aggregates');
+                function buildMonthlyTable(totArr, avgArr, countArr) {
+                    const tbl = {};
+                    monthLabels.forEach((m, idx) => {
+                        tbl[m] = {
+                            Total: totArr ? totArr[idx] : null,
+                            Média: avgArr ? avgArr[idx] : null,
+                            Contagem: countArr ? countArr[idx] : null
+                        };
+                    });
+                    return tbl;
+                }
+                if (comparisonMode && Object.keys(seriesData).length > 0) {
+                    Object.values(seriesData).forEach(serie => {
+                        const serieName = (serie.serie && serie.serie.nome) ? serie.serie.nome : `Serie ${serie.id}`;
+                        console.log(`📊 ${serieName}`);
+                        console.table(buildMonthlyTable(serie.month_totals, serie.month_avg, serie.month_counts));
+                    });
+                } else {
+                    console.table(buildMonthlyTable(monthTotals, monthAvg, monthCounts));
+                }
+                console.groupEnd();
+
+                /* Boxplot */
+                console.group('Boxplot Statistics');
+                const bpSource = (comparisonMode && Object.keys(comparisonBoxplotData).length > 0) ? comparisonBoxplotData : boxplotData;
+                if (bpSource && Object.keys(bpSource).length > 0) {
+                    Object.keys(bpSource).forEach(key => {
+                        const entry = bpSource[key];
+                        if (entry && entry.data) {
+                            const serieLabel = `${entry.serie_name} (${entry.year})`;
+                            const tbl = {};
+                            Object.keys(entry.data).forEach(month => {
+                                const s = entry.data[month];
+                                tbl[month] = {
+                                    Min: s.min,
+                                    Q1: s.q1,
+                                    Mediana: s.median,
+                                    Média: s.mean,
+                                    Q3: s.q3,
+                                    Max: s.max,
+                                    IQR: (parseFloat(s.q3) - parseFloat(s.q1)).toFixed(3)
+                                };
+                            });
+                            console.log(`📦 ${serieLabel}`);
+                            console.table(tbl);
+                        } else if (entry && entry.q1 !== undefined) {
+                            const monthTbl = {
+                                Min: entry.min,
+                                Q1: entry.q1,
+                                Mediana: entry.median,
+                                Média: entry.mean,
+                                Q3: entry.q3,
+                                Max: entry.max,
+                                IQR: (parseFloat(entry.q3) - parseFloat(entry.q1)).toFixed(3)
+                            };
+                            console.log(`📦 Mês ${key}`);
+                            console.table(monthTbl);
+                        }
+                    });
+                }
+                console.groupEnd();
+
+                /* Diarios */
+                console.group('Daily Averages Summary');
+                const dailySources = (comparisonMode && Object.keys(comparisonLineChartData).length > 0) ? comparisonLineChartData : { unique: { data: lineChartData, serie_name: 'Selecionada' } };
+                Object.keys(dailySources).forEach(k => {
+                    const srcObj = (k === 'unique') ? dailySources[k].data : dailySources[k].data;
+                    if (!srcObj || !srcObj.values) return;
+                    const vals = srcObj.values.filter(v => v !== null && !isNaN(v));
+                    if (vals.length === 0) return;
+                    const sum = vals.reduce((a, b) => a + b, 0);
+                    const avg = sum / vals.length;
+                    const sorted = [...vals].sort((a, b) => a - b);
+                    const min = sorted[0];
+                    const max = sorted[sorted.length - 1];
+                    const med = sorted[Math.floor(sorted.length / 2)];
+                    const variance = vals.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / vals.length;
+                    const std = Math.sqrt(variance);
+                    const label = (k === 'unique') ? 'Série Selecionada' : `${dailySources[k].serie_name} (${dailySources[k].year})`;
+                    console.log(`📅 ${label}:`, {
+                        Contagem: vals.length,
+                        Média: avg.toFixed(3),
+                        Mediana: med.toFixed(3),
+                        Mínimo: min.toFixed(3),
+                        Máximo: max.toFixed(3),
+                        Desvio_Padrão: std.toFixed(3),
+                        Variância: variance.toFixed(3)
+                    });
+                });
+                console.groupEnd();
+
+                console.groupEnd();
+            } catch (err) {
+                console.error('Erro ao gerar relatório no console:', err);
+            }
+        }
+
+        logReportData();
     </script>
     <iframe id="download_iframe" style="display: none;"></iframe>
 

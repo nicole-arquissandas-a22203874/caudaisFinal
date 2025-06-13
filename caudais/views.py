@@ -22,8 +22,14 @@ from django.conf import settings
 import numpy as np
 from statistics import quantiles, median
 from django.db.models import Min, Max, Avg
+from django.views.decorators.csrf import csrf_exempt
 conversion.set_conversion(default_converter + pandas2ri.converter)
 R_SCRIPT_PATH = os.path.join(os.path.dirname(__file__), 'r_scripts', 'reconstruction_script.R')
+from io import BytesIO
+import base64
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
 
 def calculate_boxplot_data(queryset, selected_serie=None, metodo='raw', selected_year=None, calcular=True):
     monthly_stats = {}
@@ -157,7 +163,7 @@ def calculate_daily_line_data(queryset):
 
     return result
 
-def dadosGraficoTodosInstantesantigo(dados_serie):
+def dadosGraficoTodosInstantes(dados_serie):
     result = {
         "labels": [],
         "valores": []
@@ -182,7 +188,7 @@ def dadosGraficoTodosInstantesantigo(dados_serie):
 
     return result
 
-def dadosGraficoTodosInstantes2(dados_serie):
+def dadosGraficoTodosInstantes(dados_serie):
     result = {
         "labels": [],
         "valores": []
@@ -1246,12 +1252,31 @@ def dashboard(request):
 
     if not selected_year_final and all_years:
         selected_year_final = max(all_years)
+       ############
+    if(comparison_mode=='false'):
+        if selected_serie_id :
+            selected_serie = Serie.objects.get(id=selected_serie_id )
+        else:
+            selected_serie = None  
 
+        if selected_serie:
+            anos_disponiveis = Medicao.objects.filter(serie=selected_serie).annotate(
+            ano=ExtractYear('timestamp')
+            ).values_list('ano', flat=True).distinct()
+
+            if selected_year and selected_year not in anos_disponiveis:
+                selected_year_final = min(anos_disponiveis) if anos_disponiveis else None
+
+    #########
+    
+        
+           
     
     boxplot_data = {}
     line_chart_data = {}
     comparison_boxplot_data = {}
     comparison_line_chart_data = {}
+    comparison_instantaneous_data = {}
     
     if selected_series and len(selected_series) > 0:
         if comparison_mode and len(selected_series) > 1:
@@ -1266,7 +1291,7 @@ def dashboard(request):
                             queryset = Medicao.objects.filter(serie=selected_serie, timestamp__year=year_to_process)
                         elif data_type == 'normalized':
                             queryset = MedicaoProcessada.objects.filter(
-                                serie=selected_serie, 
+                                serie=selected_serie,
                                 metodo='normalized', 
                                 timestamp__year=year_to_process
                             )
@@ -1298,6 +1323,14 @@ def dashboard(request):
                             'serie_name': selected_serie.nome,
                             'year': year_to_process
                         }
+                        
+                        if data_type == 'normalized' or data_type == 'reconstruido':
+                            serie_instantaneous_data = dadosGraficoTodosInstantes(queryset)
+                            comparison_instantaneous_data[serie_year_key] = {
+                                'data': serie_instantaneous_data,
+                                'serie_name': selected_serie.nome,
+                                'year': year_to_process
+                            }
         else:
             
             first_serie = selected_series[0]
@@ -1353,11 +1386,8 @@ def dashboard(request):
                 labels_grafico_linhas = dados_gragico_linhas["labels"]
                 valores_grafico_linhas = dados_gragico_linhas["valores"]
             elif data_type == 'raw':
-                
-                serie_dataT = Medicao.objects.filter(serie=first_serie).order_by('timestamp')
-                dados_gragico_linhas_instantesT = dadosGraficoTodosInstantes(serie_dataT)
-                labels_grafico_linhasT = dados_gragico_linhas_instantesT["labels"]
-                valores_grafico_linhasT = dados_gragico_linhas_instantesT["valores"]
+                # Nada necessario, ja nao metemos o grafico de linhas instantaneas
+                pass
 
     month_names=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
     
@@ -1389,6 +1419,7 @@ def dashboard(request):
         'line_chart_data': line_chart_data,
         'comparison_boxplot_data': comparison_boxplot_data,
         'comparison_line_chart_data': comparison_line_chart_data,
+        'comparison_instantaneous_data': comparison_instantaneous_data,
         'linha_temporal_labels': labels_grafico_linhas if 'labels_grafico_linhas' in locals() else [],
         'linha_temporal_valores': valores_grafico_linhas if 'valores_grafico_linhas' in locals() else [],
         'linha_temporal_labelsT': labels_grafico_linhasT if 'labels_grafico_linhasT' in locals() else [],
@@ -1539,7 +1570,8 @@ def exportar_excel(request):
 
         return response
 
-@login_required
+
+@login_required(login_url='/autenticacao/login/')
 def obter_series_por_ponto(request):
     ponto_id = request.GET.get('ponto_id')
     series_data = []
@@ -1711,3 +1743,404 @@ def calcula_outliers(serie, metodo, ano, mes, q1, q3):
     outliers = valores_np[outliers_mask]
     
     return outliers.tolist() if len(outliers) > 0 else []
+
+@login_required(login_url='/autenticacao/login/')
+@csrf_exempt
+def exportar_pdf(request):
+    """Gera PDF completo com gráficos e dados estatísticos"""
+    if request.method != 'POST':
+        return HttpResponse("Método inválido", status=405)
+
+    try:
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        
+        payload = json.loads(request.body.decode('utf-8'))
+        
+        
+        serie_ids = payload.get('serie_ids', [])
+        comparison_mode = payload.get('comparison_mode', False)
+        data_type = payload.get('data_type', 'raw')
+        recon_method = payload.get('recon_method', 'jq')
+        selected_year = payload.get('selected_year')
+        series_years = payload.get('series_years', {})
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, 
+                              topMargin=30, bottomMargin=30)
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor('#0077b6')
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=12,
+            spaceBefore=20,
+            textColor=colors.HexColor('#0077b6')
+        )
+        
+        story = []
+        selected_series = []
+        
+        story.append(Paragraph("Relatório", title_style))
+        story.append(Spacer(1, 20))
+        
+        
+        if serie_ids:
+            selected_series = [Serie.objects.get(id=sid) for sid in serie_ids if sid]
+            
+            for serie in selected_series:
+                
+                years_to_process = []
+                if comparison_mode and str(serie.id) in series_years:
+                    years_to_process = series_years[str(serie.id)]
+                elif selected_year:
+                    years_to_process = [selected_year]
+                else:
+                    
+                    if data_type == 'raw':
+                        latest_year = Medicao.objects.filter(serie=serie).annotate(
+                            year=ExtractYear('timestamp')
+                        ).values_list('year', flat=True).distinct().order_by('-year').first()
+                    else:
+                        method = 'normalized' if data_type == 'normalized' else recon_method
+                        latest_year = MedicaoProcessada.objects.filter(
+                            serie=serie, metodo=method
+                        ).annotate(
+                            year=ExtractYear('timestamp')
+                        ).values_list('year', flat=True).distinct().order_by('-year').first()
+                    
+                    if latest_year:
+                        years_to_process = [latest_year]
+                
+                for year in years_to_process:
+                    
+                    story.append(Paragraph(f"Série: {serie.nome} - Ano: {year}", heading_style))
+                    
+                    
+                    if data_type == 'raw':
+                        queryset = Medicao.objects.filter(serie=serie, timestamp__year=year)
+                    elif data_type == 'normalized':
+                        queryset = MedicaoProcessada.objects.filter(
+                            serie=serie, metodo='normalized', timestamp__year=year
+                        )
+                    else:  # reconstruido
+                        queryset = MedicaoProcessada.objects.filter(
+                            serie=serie, metodo=recon_method, timestamp__year=year
+                        )
+                    
+                    
+                    annual_data = queryset.aggregate(
+                        total=Sum('valor'),
+                        count=Count('valor'),
+                        avg=Avg('valor'),
+                        min_val=Min('valor'),
+                        max_val=Max('valor')
+                    )
+                    
+                    annual_table_data = [
+                        ['Estatística', 'Valor'],
+                        ['Total Anual (L)', f"{annual_data['total']:.2f}" if annual_data['total'] else "0.00"],
+                        ['Contagem', str(annual_data['count'] or 0)],
+                        ['Média (m³/s)', f"{annual_data['avg']:.3f}" if annual_data['avg'] else "0.000"],
+                        ['Mínimo (m³/s)', f"{annual_data['min_val']:.3f}" if annual_data['min_val'] else "0.000"],
+                        ['Máximo (m³/s)', f"{annual_data['max_val']:.3f}" if annual_data['max_val'] else "0.000"],
+                    ]
+                    
+                    annual_table = Table(annual_table_data, colWidths=[3*inch, 2*inch])
+                    annual_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ]))
+                    
+                    story.append(Paragraph("Estatísticas Anuais", styles['Heading3']))
+                    story.append(annual_table)
+                    story.append(Spacer(1, 20))
+                    
+                    
+                    monthly_data = queryset.annotate(
+                        month=ExtractMonth('timestamp')
+                    ).values('month').annotate(
+                        total=Sum('valor'),
+                        count=Count('valor'),
+                        avg=Avg('valor')
+                    ).order_by('month')
+                    
+                    month_names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+                                 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+                    
+                    monthly_table_data = [['Mês', 'Total (L)', 'Contagem', 'Média (m³/s)']]
+                    monthly_lookup = {entry['month']: entry for entry in monthly_data}
+                    
+                    for m in range(1, 13):
+                        month_name = month_names[m-1]
+                        if m in monthly_lookup:
+                            entry = monthly_lookup[m]
+                            monthly_table_data.append([
+                                month_name,
+                                f"{entry['total']:.2f}" if entry['total'] else "0.00",
+                                str(entry['count'] or 0),
+                                f"{entry['avg']:.3f}" if entry['avg'] else "0.000"
+                            ])
+                        else:
+                            monthly_table_data.append([month_name, "0.00", "0", "0.000"])
+                    
+                    monthly_table = Table(monthly_table_data, colWidths=[1.2*inch, 1.5*inch, 1.2*inch, 1.5*inch])
+                    monthly_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 9),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ]))
+                    
+                    story.append(Paragraph("Estatísticas Mensais", styles['Heading3']))
+                    story.append(monthly_table)
+                    story.append(Spacer(1, 20))
+                    
+                    
+                    boxplot_stats = calculate_boxplot_data(queryset, serie, 
+                                                         data_type if data_type != 'reconstruido' else recon_method, 
+                                                         year, True)
+                    
+                    if boxplot_stats:
+                        boxplot_table_data = [['Mês', 'Min', 'Q1', 'Mediana', 'Média', 'Q3', 'Max', 'IQR']]
+                        
+                        for month_num in range(1, 13):
+                            month_name = month_names[month_num-1]
+                            if month_num in boxplot_stats:
+                                stats = boxplot_stats[month_num]
+                                iqr = float(stats['q3']) - float(stats['q1'])
+                                boxplot_table_data.append([
+                                    month_name,
+                                    f"{stats['min']:.3f}",
+                                    f"{stats['q1']:.3f}",
+                                    f"{stats['median']:.3f}",
+                                    f"{stats['mean']:.3f}",
+                                    f"{stats['q3']:.3f}",
+                                    f"{stats['max']:.3f}",
+                                    f"{iqr:.3f}"
+                                ])
+                            else:
+                                boxplot_table_data.append([month_name, "0.000", "0.000", "0.000", "0.000", "0.000", "0.000", "0.000"])
+                        
+                        boxplot_table = Table(boxplot_table_data, colWidths=[0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch])
+                        boxplot_table.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                            ('FONTSIZE', (0, 0), (-1, -1), 8),
+                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ]))
+                        
+                        story.append(Paragraph("Estatísticas de Distribuição (Quartis)", styles['Heading3']))
+                        story.append(boxplot_table)
+                        story.append(Spacer(1, 20))
+                    
+                    story.append(PageBreak())
+        
+        if comparison_mode and len(selected_series) > 1:
+            story.append(Paragraph("Tabelas de Comparação", title_style))
+            story.append(Spacer(1, 20))
+            
+            comparison_table_data = [['Série/Ano', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                                    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']]
+            
+            
+            for serie in selected_series:
+                if str(serie.id) in series_years:
+                    for year in series_years[str(serie.id)]:
+                        
+                        if data_type == 'raw':
+                            monthly_data = Medicao.objects.filter(
+                                serie=serie, timestamp__year=year
+                            ).annotate(
+                                month=ExtractMonth('timestamp')
+                            ).values('month').annotate(
+                                count=Count('valor')
+                            ).order_by('month')
+                        elif data_type == 'normalized':
+                            monthly_data = MedicaoProcessada.objects.filter(
+                                serie=serie, metodo='normalized', timestamp__year=year
+                            ).annotate(
+                                month=ExtractMonth('timestamp')
+                            ).values('month').annotate(
+                                count=Count('valor')
+                            ).order_by('month')
+                        else:  # reconstruido
+                            monthly_data = MedicaoProcessada.objects.filter(
+                                serie=serie, metodo=recon_method, timestamp__year=year
+                            ).annotate(
+                                month=ExtractMonth('timestamp')
+                            ).values('month').annotate(
+                                count=Count('valor')
+                            ).order_by('month')
+                        
+                        monthly_lookup = {entry['month']: entry for entry in monthly_data}
+                        row = [f"{serie.nome} ({year})"]
+                        
+                        for m in range(1, 13):
+                            if m in monthly_lookup:
+                                row.append(str(monthly_lookup[m]['count']))
+                            else:
+                                row.append("0")
+                        
+                        comparison_table_data.append(row)
+            
+            if len(comparison_table_data) > 1:  
+                comparison_table = Table(comparison_table_data, 
+                                       colWidths=[1.5*inch] + [0.4*inch]*12)
+                comparison_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ]))
+                
+                story.append(Paragraph("Contagem Mensal - Comparação", styles['Heading3']))
+                story.append(comparison_table)
+                story.append(Spacer(1, 20))
+                story.append(PageBreak())
+
+        
+        images = payload.get('images', [])
+        if images:
+            story.append(Paragraph("Gráficos", title_style))
+            story.append(Spacer(1, 20))
+            
+            chart_titles = {
+                'yearlyChart': 'Evolução Anual de Caudais',
+                'monthlyAvgChart': 'Caudal Médio por Mês',
+                'monthlyTotalChart': 'Volume Total Mensal',
+                'boxplotChart': 'Distribuição Mensal de Caudal',
+                'dailyLineChart': 'Evolução Diária de Caudal',
+                'linhaDiariaChartT': 'Gráfico de Linha Completo - Todos os Instantes'
+            }
+            
+            for img in images:
+                chart_name = img.get('name', '')
+                data_url = img.get('data', '')
+                
+                if not data_url.startswith('data:image'):
+                    continue
+                
+                
+                title = chart_titles.get(chart_name, chart_name)
+                story.append(Paragraph(title, heading_style))
+                
+                
+                _header, encoded = data_url.split(',', 1)
+                img_bytes = BytesIO(base64.b64decode(encoded))
+                
+                
+                from PIL import Image as PILImage
+                pil_img = PILImage.open(img_bytes)
+                original_width, original_height = pil_img.size
+                
+                
+                max_width = 7.5 * inch
+                max_height = 5 * inch
+                
+                width_ratio = max_width / original_width
+                height_ratio = max_height / original_height
+                scale_ratio = min(width_ratio, height_ratio)
+                
+                new_width = original_width * scale_ratio
+                new_height = original_height * scale_ratio
+                
+                img_obj = Image(img_bytes, width=new_width, height=new_height)
+                story.append(img_obj)
+                story.append(Spacer(1, 20))
+                
+                
+                if chart_name == 'boxplotChart':
+                    story.append(Paragraph("Dados Detalhados do Boxplot", styles['Heading3']))
+
+                    def generate_boxplot_table(serie, yr):
+                        qset = (Medicao.objects.filter(serie=serie, timestamp__year=yr) if data_type == 'raw' else MedicaoProcessada.objects.filter(serie=serie, metodo=('normalized' if data_type=='normalized' else recon_method), timestamp__year=yr))
+                        stats = calculate_boxplot_data(qset, serie, data_type if data_type!='reconstruido' else recon_method, yr, True)
+                        if not stats:
+                            return None
+                        mn=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+                        tbl=[["Mês","Min","Q1","Mediana","Média","Q3","Max","IQR","Outliers"]]
+                        for m in range(1,13):
+                            if m in stats:
+                                s=stats[m]; iqr=float(s['q3'])-float(s['q1']); o=len(s.get('outliers',[]))
+                                tbl.append([mn[m-1],f"{s['min']:.3f}",f"{s['q1']:.3f}",f"{s['median']:.3f}",f"{s['mean']:.3f}",f"{s['q3']:.3f}",f"{s['max']:.3f}",f"{iqr:.3f}",str(o)])
+                            else:
+                                tbl.append([mn[m-1]]+ ["0.000"]*7+["0"])
+                        t=Table(tbl,colWidths=[0.7*inch]*9)
+                        t.setStyle(TableStyle([
+                            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#90e0ef')),
+                            ('TEXTCOLOR',(0,0),(-1,0),colors.black),
+                            ('GRID',(0,0),(-1,-1),0.5,colors.black),
+                            ('ALIGN',(0,0),(-1,-1),'CENTER'),
+                            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+                            ('FONTSIZE',(0,0),(-1,-1),7),
+                            ('VALIGN',(0,0),(-1,-1),'MIDDLE')
+                        ]))
+                        return t
+
+                    if comparison_mode and len(selected_series)>1:
+                        for serie in selected_series:
+                            yrs = series_years.get(str(serie.id), [])
+                            for yr in yrs:
+                                tbl=generate_boxplot_table(serie,yr)
+                                if tbl:
+                                    story.append(Paragraph(f"{serie.nome} ({yr})", styles['Heading4']))
+                                    story.append(tbl)
+                                    story.append(Spacer(1,15))
+                    else:
+                        if selected_series:
+                            serie = selected_series[0]
+                            yr = selected_year if selected_year else None
+                            if not yr:
+                                if data_type == 'raw':
+                                    yr = Medicao.objects.filter(serie=serie).annotate(y=ExtractYear('timestamp')).values_list('y',flat=True).order_by('-y').first()
+                                else:
+                                    method = 'normalized' if data_type == 'normalized' else recon_method
+                                    yr = MedicaoProcessada.objects.filter(serie=serie, metodo=method).annotate(y=ExtractYear('timestamp')).values_list('y',flat=True).order_by('-y').first()
+                            
+                            if yr:
+                                tbl=generate_boxplot_table(serie,yr)
+                                if tbl:
+                                    story.append(Paragraph(f"{serie.nome} ({yr}) - Estatísticas Detalhadas", styles['Heading4']))
+                                    story.append(tbl)
+                                    story.append(Spacer(1,15))
+
+                story.append(Spacer(1, 20))
+        
+        doc.build(story)
+        buffer.seek(0)
+        
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="relatorio_dashboard.pdf"'
+        return response
+
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f"Erro ao gerar PDF: {exc}", status=500)
