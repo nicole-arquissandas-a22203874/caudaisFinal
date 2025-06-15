@@ -237,7 +237,6 @@ TBATS.reconstruct <- function () {
   forecast.estimates <- forecast.reconstruct ()
   backcast.estimates <- backcast.reconstruct ()
   combination.estimates <- combine.pred (y.t,forecast.estimates, backcast.estimates)
-  combination.estimates
   # Combine the original time series with reconstructed values
   y.complete <- y.t
   na.indices <- which(is.na(y.complete))

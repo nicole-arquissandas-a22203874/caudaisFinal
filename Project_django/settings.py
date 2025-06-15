@@ -101,3 +101,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # MailGun (valores lidos de variáveis de ambiente)
 MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY', '')
 MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN', '')
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024 

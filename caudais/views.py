@@ -135,9 +135,9 @@ def calculate_boxplot_data(queryset, selected_serie=None, metodo='raw', selected
 
     return dict(sorted(monthly_stats.items()))
 
-def calculate_daily_line_data(queryset):
+def calculate_daily_line_data(queryset,method):
     df = pd.DataFrame(list(queryset.values("timestamp", "valor")))
-    
+    df_copy=df
     result = {
         "labels": [],
         "values": []
@@ -145,48 +145,42 @@ def calculate_daily_line_data(queryset):
     
     if df.empty:
         return result
-    
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df["data"] = df["timestamp"].dt.date
-    media_por_dia = df.groupby("data")["valor"].mean()
+    if method=='raw':
+        df_copy["date"] = df_copy["timestamp"].dt.date
+        media_por_dia = df_copy.groupby("date")["valor"].mean()
 
-    
-    full_range = pd.date_range(start=df["data"].min(), end=df["data"].max(), freq="D")
-    media_completa = media_por_dia.reindex(full_range.date)
+        # Gerar intervalo completo de dias, mesmo para os dias sem dados
+        start_date = df_copy["date"].min()
+        end_date = df_copy["date"].max()
+        all_dates = pd.date_range(start=start_date, end=end_date, freq="D").date
 
-    
-    linha_temporal_labels = [d.strftime("%Y-%m-%d") for d in full_range]
-    linha_temporal_valores = [round(float(v), 2) if pd.notnull(v) else None for v in media_completa]
-    
-    result["labels"] = linha_temporal_labels
-    result["values"] = linha_temporal_valores
-
-    return result
-
-def dadosGraficoTodosInstantes(dados_serie):
-    result = {
-        "labels": [],
-        "valores": []
-    }
-    valores = []
-
-    df = pd.DataFrame(list(dados_serie.values("timestamp", "valor")))
-
-    if not df.empty:
+        result["labels"] = [d.strftime("%Y-%m-%d") for d in all_dates]
+        result["values"] = [round(float(media_por_dia.get(d, None)), 2) if pd.notnull(media_por_dia.get(d, None)) else None for d in all_dates]
+    else:
         
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
-        df = df.sort_values("timestamp")
-            
-        for val in df["valor"]:
-            if pd.isna(val):               # detecta NaN ou None
-                valores.append(None)       # mantém nulo para representar gap no gráfico
-            else:
-                valores.append(val) 
+        df_copy["timestamp"] = pd.to_datetime(df["timestamp"])
 
-        result["labels"] = [ts.strftime("%Y-%m-%d %H:%M:%S") for ts in df["timestamp"]]
-        result["valores"] = [v for v in valores]
+        df_copy["timestamp"] = df["timestamp"].dt.floor("15min")  # Alinha os dados ao intervalo desejado
+        df_copy.set_index("timestamp", inplace=True)
+
+        start_date = df_copy.index.min().floor("D")
+        end_date = df_copy.index.max().ceil("D") + pd.Timedelta(hours=23, minutes=45)
+        full_range = pd.date_range(start=start_date, end=end_date, freq="15T")
+
+        df_reindexed = df_copy.reindex(full_range)
+        df_reindexed["data"] = df_reindexed.index.date
+        media_por_dia = df_reindexed.groupby("data")["valor"].mean()
+
+    
+        linha_temporal_labels = [d.strftime("%Y-%m-%d") for d in pd.to_datetime(media_por_dia.index)]
+        linha_temporal_valores = [round(float(v), 2) if pd.notnull(v) else None for v in media_por_dia ]
+    
+        result["labels"] = linha_temporal_labels
+        result["values"] = linha_temporal_valores
 
     return result
+
+
 
 def dadosGraficoTodosInstantes(dados_serie):
     result = {
@@ -218,32 +212,51 @@ def dadosGraficoTodosInstantes(dados_serie):
 
     return result
 
-def dadosGraficoLinhas(dados_diarios):
+def dadosGraficoLinhas(dados_diarios,method):
+
+    df = pd.DataFrame(list(dados_diarios.values("timestamp", "valor")))
+    df_copy=df
     result = {
         "labels": [],
         "valores": []
     }
+    
+    if df.empty:
+        return result
+    if method=='raw':
+        df_copy["date"] = df_copy["timestamp"].dt.date
+        media_por_dia = df_copy.groupby("date")["valor"].mean()
 
-    df = pd.DataFrame(list(dados_diarios.values("timestamp", "valor")))
+        # Gerar intervalo completo de dias, mesmo para os dias sem dados
+        start_date = df_copy["date"].min()
+        end_date = df_copy["date"].max()
+        all_dates = pd.date_range(start=start_date, end=end_date, freq="D").date
 
-    if not df.empty:
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
-        df["data"] = df["timestamp"].dt.date
-        media_por_dia = df.groupby("data")["valor"].mean()
+        result["labels"] = [d.strftime("%Y-%m-%d") for d in all_dates]
+        result["valores"] = [round(float(media_por_dia.get(d, None)), 2) if pd.notnull(media_por_dia.get(d, None)) else None for d in all_dates]
+    else:
+        df_copy["timestamp"] = pd.to_datetime(df["timestamp"])
 
-        # Intervalo completo de datas
-        full_range = pd.date_range(start=df["data"].min(), end=df["data"].max(), freq="D")
-        media_completa = media_por_dia.reindex(full_range.date)  # preserva datas ausentes com NaN
+        df_copy["timestamp"] = df["timestamp"].dt.floor("15min")  # Alinha os dados ao intervalo desejado
+        df_copy.set_index("timestamp", inplace=True)
 
-        # Labels e valores com None onde não há dados
-        linha_temporal_labels = [d.strftime("%Y-%m-%d") for d in full_range]
-        linha_temporal_valores = [round(v, 2) if pd.notnull(v) else None for v in media_completa]
-        
-       
+        start_date = df_copy.index.min().floor("D")
+        end_date = df_copy.index.max().ceil("D") + pd.Timedelta(hours=23, minutes=45)
+        full_range = pd.date_range(start=start_date, end=end_date, freq="15T")
+
+        df_reindexed = df_copy.reindex(full_range)
+        df_reindexed["data"] = df_reindexed.index.date
+        media_por_dia = df_reindexed.groupby("data")["valor"].mean()
+
+    
+        linha_temporal_labels = [d.strftime("%Y-%m-%d") for d in pd.to_datetime(media_por_dia.index)]
+        linha_temporal_valores = [round(float(v), 2) if pd.notnull(v) else None for v in media_por_dia ]
+    
         result["labels"] = linha_temporal_labels
         result["valores"] = linha_temporal_valores
 
     return result
+
 
 @login_required(login_url='/autenticacao/login/')
 def upload_novo_ponto(request):
@@ -1252,22 +1265,8 @@ def dashboard(request):
 
     if not selected_year_final and all_years:
         selected_year_final = max(all_years)
-       ############
-    if(comparison_mode=='false'):
-        if selected_serie_id :
-            selected_serie = Serie.objects.get(id=selected_serie_id )
-        else:
-            selected_serie = None  
-
-        if selected_serie:
-            anos_disponiveis = Medicao.objects.filter(serie=selected_serie).annotate(
-            ano=ExtractYear('timestamp')
-            ).values_list('ano', flat=True).distinct()
-
-            if selected_year and selected_year not in anos_disponiveis:
-                selected_year_final = min(anos_disponiveis) if anos_disponiveis else None
-
-    #########
+      
+  
     
         
            
@@ -1317,7 +1316,7 @@ def dashboard(request):
                         }
                         
                         
-                        serie_line_data = calculate_daily_line_data(queryset)
+                        serie_line_data = calculate_daily_line_data(queryset,data_type)
                         comparison_line_chart_data[serie_year_key] = {
                             'data': serie_line_data,
                             'serie_name': selected_serie.nome,
@@ -1364,7 +1363,7 @@ def dashboard(request):
             
             
             boxplot_data = calculate_boxplot_data(queryset, first_serie, data_type if data_type != 'reconstruido' else recon_method, year_for_charts, True)
-            line_chart_data = calculate_daily_line_data(queryset)
+            line_chart_data = calculate_daily_line_data(queryset,data_type)
             
             
             if data_type == 'normalized' or data_type == 'reconstruido':
@@ -1382,7 +1381,7 @@ def dashboard(request):
                 valores_grafico_linhasT = dados_gragico_linhas_instantesT["valores"]
                 
                 
-                dados_gragico_linhas = dadosGraficoLinhas(serie_data_year)
+                dados_gragico_linhas = dadosGraficoLinhas(serie_data_year,data_type)
                 labels_grafico_linhas = dados_gragico_linhas["labels"]
                 valores_grafico_linhas = dados_gragico_linhas["valores"]
             elif data_type == 'raw':
@@ -1498,10 +1497,10 @@ def exportar_excel(request):
 
         if data_type == "reconstruido":
             filename_year = f"_{'_'.join(map(str, year_filter))}" if year_filter else ""
-            nome_arquivo = f"medicoes_{data_type}_{metodo}_serie{serie.id}{filename_year}.xlsx"
+            nome_arquivo = f"medicoes_{data_type}_{metodo}_{serie.nome}{filename_year}.xlsx"
         else:
             filename_year = f"_{'_'.join(map(str, year_filter))}" if year_filter else ""
-            nome_arquivo = f"medicoes_{data_type}_serie{serie.id}{filename_year}.xlsx"
+            nome_arquivo = f"medicoes_{data_type}_{serie.nome}{filename_year}.xlsx"
 
         response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
 

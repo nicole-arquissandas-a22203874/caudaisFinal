@@ -200,25 +200,6 @@
         </div>
     </div>
 
-    <script>
-        setTimeout(function() {
-            const dashboardBtn = document.querySelector('.btn-primary');
-            if (dashboardBtn) {
-                dashboardBtn.style.backgroundColor = '#023e8a';
-                dashboardBtn.innerHTML = '<i class="fas fa-chart-bar"></i> Redirecionando... (' + 5 + 's)';
-                
-                let countdown = 5;
-                const countdownInterval = setInterval(function() {
-                    countdown--;
-                    dashboardBtn.innerHTML = '<i class="fas fa-chart-bar"></i> Redirecionando... (' + countdown + 's)';
-                    
-                    if (countdown <= 0) {
-                        clearInterval(countdownInterval);
-                        window.location.href = '{% url "caudais:dashboard" %}';
-                    }
-                }, 1000);
-            }
-        }, 5000); // Countdown de 5 segundos
-    </script>
+   
 </body>
 </html> 
