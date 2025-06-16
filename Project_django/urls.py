@@ -19,7 +19,7 @@ from django.urls import include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
-from settings import API_PREFIX
+from Project_django.settings import API_PREFIX
 
 CORRECTED_PREFIX = API_PREFIX + '/' if len(API_PREFIX) > 0 else API_PREFIX
 
