@@ -1,0 +1,23 @@
+version: '3'
+services:
+  deisi2078:
+    container_name: deisi2078_django
+    image: deisi2078:latest
+    build: ./
+    env_file:
+      - .env
+    networks:
+      - gateway-network
+      - deisi2078-network
+    volumes:
+      - /home/deisi/lusofona-gateway/multimedia/deisi2078/static:/data/static
+      - /home/deisi/lusofona-gateway/multimedia/deisi2078/media:/data/media
+      - db_data:/app/db/
+
+networks:
+  deisi2078-network:
+    driver: bridge
+  gateway-network:
+    external: true
+volumes:
+  db_data:

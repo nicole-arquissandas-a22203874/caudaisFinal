@@ -15,19 +15,23 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from django.urls import  include
+from django.urls import include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
 
+import caudais.views
+from Project_django.settings import API_PREFIX
+
+CORRECTED_PREFIX = API_PREFIX + '/' if len(API_PREFIX) > 0 else API_PREFIX
+
 urlpatterns = [
-    path('', lambda request: redirect('caudais:dashboard'), name='home'),
-    path('admin/', admin.site.urls),
-    path('caudais/', include('caudais.urls')),
-    path('autenticacao/', include('autenticacao.urls')),
+    path(API_PREFIX + '', caudais.views.dashboard, name='home'),
+    path(CORRECTED_PREFIX + 'admin/', admin.site.urls),
+    path(CORRECTED_PREFIX + 'caudais/', include('caudais.urls')),
+    path(CORRECTED_PREFIX + 'autenticacao/', include('autenticacao.urls')),
 ]
 
 urlpatterns += static(
-      settings.MEDIA_URL,
-      document_root=settings.MEDIA_ROOT)
-
+    settings.MEDIA_URL,
+    document_root=settings.MEDIA_ROOT)

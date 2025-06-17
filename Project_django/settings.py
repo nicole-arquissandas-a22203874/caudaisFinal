@@ -13,13 +13,18 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+API_PREFIX = os.environ.get('PROXY', '')
+
 # SECRET_KEY agora vem do ambiente, com valor por defeito apenas para testes locais
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-key')
 
 # DEBUG também pode vir do ambiente (para controlar ambiente prod/dev)
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['nicoleArq.pythonanywhere.com', '127.0.0.1', '127.0.0.1:8000','localhost']
+ALLOWED_HOSTS = ['nicoleArq.pythonanywhere.com', '127.0.0.1', '127.0.0.1:8000','localhost',
+                 'projects.deisi.ulusofona.pt',
+                 'http://projects.deisi.ulusofona.pt',
+                 'https://projects.deisi.ulusofona.pt']
 
 # Application definition
 INSTALLED_APPS = [
@@ -67,14 +72,14 @@ WSGI_APPLICATION = 'Project_django.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'db'  / 'db.sqlite3',
     }
 }
 
 # Autenticacao
-LOGIN_URL = '/autenticacao/login/'
-LOGIN_REDIRECT_URL = '/caudais/dashboard/'
-LOGOUT_REDIRECT_URL = '/autenticacao/login/'
+LOGIN_URL = os.environ.get('PROXY', '') + '/autenticacao/login/'
+LOGIN_REDIRECT_URL = os.environ.get('PROXY', '') + '/caudais/dashboard/'
+LOGOUT_REDIRECT_URL = os.environ.get('PROXY', '') + '/autenticacao/login/'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -91,10 +96,10 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files
-STATIC_URL = '/static/'
-MEDIA_ROOT = '/home/nicoleArq/Project_django/media'
-MEDIA_URL = '/media/'
-STATIC_ROOT = '/home/nicoleArq/Project_django/static'
+STATIC_URL = os.environ.get('STATIC_URL', '/static/')
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', '/home/nicoleArq/Project_django/media')
+MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
+STATIC_ROOT = os.environ.get('STATIC_ROOT', '/home/nicoleArq/Project_django/static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
