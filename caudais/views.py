@@ -30,6 +30,7 @@ import base64
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
+from Project_django.settings import LOGIN_URL
 
 def calculate_boxplot_data(queryset, selected_serie=None, metodo='raw', selected_year=None, calcular=True):
     monthly_stats = {}
@@ -258,7 +259,7 @@ def dadosGraficoLinhas(dados_diarios,method):
     return result
 
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def upload_novo_ponto(request):
     if request.method == 'POST':
         selection_form = UploadSelectionForm(request.POST)
@@ -311,7 +312,7 @@ def upload_novo_ponto(request):
         'arquivo_form': arquivo_form
     })
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def upload_nova_serie(request):
     if request.method == 'POST':
         selection_form= UploadSelectionForm(request.POST)
@@ -336,7 +337,7 @@ def upload_nova_serie(request):
         'arquivo_form': arquivo_form
     })
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def upload_adicionar_valores(request):
     if request.method == 'POST':
         selection_form= UploadSelectionForm(request.POST)
@@ -368,7 +369,7 @@ def upload_adicionar_valores(request):
 
 
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def dashboard(request):
     conversion.set_conversion(default_converter + pandas2ri.converter) 
     selected_year = request.GET.get('year')
@@ -1428,7 +1429,7 @@ def dashboard(request):
     return render(request, 'caudais/dashboard.html', context)
 
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def exportar_excel(request):
     serie_ids = request.GET.getlist('serie_ids')
     serie_id = request.GET.get('serie_id')  
@@ -1570,7 +1571,7 @@ def exportar_excel(request):
         return response
 
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def obter_series_por_ponto(request):
     ponto_id = request.GET.get('ponto_id')
     series_data = []
@@ -1627,7 +1628,7 @@ def obter_series_por_ponto(request):
     return JsonResponse(series_data, safe=False)
 
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 def dashboard_comparison(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -1743,7 +1744,7 @@ def calcula_outliers(serie, metodo, ano, mes, q1, q3):
     
     return outliers.tolist() if len(outliers) > 0 else []
 
-@login_required(login_url='/autenticacao/login/')
+@login_required(login_url=LOGIN_URL)
 @csrf_exempt
 def exportar_pdf(request):
     """Gera PDF completo com gráficos e dados estatísticos"""
