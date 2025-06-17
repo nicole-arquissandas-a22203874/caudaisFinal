@@ -22,6 +22,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-key')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['nicoleArq.pythonanywhere.com', '127.0.0.1', '127.0.0.1:8000','localhost',
+                 'projects.deisi.ulusofona.pt',
                  'http://projects.deisi.ulusofona.pt',
                  'https://projects.deisi.ulusofona.pt']
 
@@ -71,7 +72,7 @@ WSGI_APPLICATION = 'Project_django.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'db'  / 'db.sqlite3',
     }
 }
 
