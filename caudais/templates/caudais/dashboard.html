@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Dashboard de Medições</title>
 
-      <!-- Font Awesome atualizado -->
+      <!-- Font Awesome -->
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
       <!-- Chart.js e plugin de zoom -->
@@ -30,27 +30,7 @@
               padding: 20px;
           }
   
-          .dark-mode {
-              background-color: #1a1a1a;
-              color: #f1f1f1;
-          }
-  
-          .dark-mode .chart-container,
-          .dark-mode form,
-          .dark-mode table.small-table,
-          .dark-mode .dropdown-menu {
-              background-color: #2c2c2c;
-              color: #f1f1f1;
-          }
-  
-          .dark-mode table.small-table th {
-              background-color: #444;
-              color: #fff;
-          }
-  
-          .dark-mode .dropdown-menu a {
-              color: #f1f1f1;
-          }
+        
   
           h1 {
               text-align: center;
@@ -235,14 +215,7 @@
               color: var(--cinza-escuro);
           }
   
-          .dark-mode .menu-toggle {
-              background-color: #2c2c2c;
-          }
-  
-          .dark-mode .menu-toggle i {
-              color: #f1f1f1;
-          }
-  
+        
           .dropdown-menu {
               display: none;
               position: fixed;
@@ -369,27 +342,6 @@
               border-left: 3px solid #dc3545;
           }
 
-          .dark-mode #series_years_selectors .form-group {
-              background-color: #3c3c3c;
-              border-color: #555;
-          }
-
-          .dark-mode #series_years_selectors label {
-              color: #f1f1f1;
-          }
-
-          .dark-mode .years-grid {
-              background-color: #2c2c2c;
-              border-color: #555;
-          }
-
-          .dark-mode .year-checkbox-item label {
-              color: #f1f1f1;
-          }
-
-          .dark-mode .year-checkbox-item label {
-              color: #f1f1f1;
-          }
 
           .auto-fill-info {
               margin-bottom: 10px;
@@ -400,10 +352,7 @@
               color: #1565c0;
           }
 
-          .dark-mode .auto-fill-info {
-              background-color: #2c3e50;
-              color: #74b9ff;
-          }
+        
 
           @keyframes slideIn {
               from {
@@ -453,7 +402,6 @@
         <a href="{% url 'caudais:upload_novo_ponto' %}"><i class="fas fa-upload"></i> Upload de Medições</a>
         <a href="#" onclick="exportarExcel()"><i class="fas fa-file-excel"></i> Exportar para Excel</a>
         <a href="#" onclick="exportarPDF()"><i class="fas fa-file-pdf"></i> Gerar Relatório (PDF)</a>
-        <a href="#" onclick="toggleTheme()"><i class="fas fa-adjust"></i> Alternar Modo Claro/Escuro</a>
         <a href="{% url 'autenticacao:logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 
@@ -514,7 +462,6 @@
             </select>
         </div>
 
-        <!-- Single series year selector -->
         <div class="form-group" id="single_year_group" {% if comparison_mode %}style="display:none;"{% endif %}>
             <label for="year">Ano:</label>
             <select name="year" id="year">
@@ -524,7 +471,6 @@
             </select>
         </div>
 
-        <!-- Per-series year selectors for comparison mode -->
         <div id="comparison_years_container" {% if not comparison_mode %}style="display:none;"{% endif %}>
             <div id="series_years_selectors">
             </div>
@@ -596,10 +542,10 @@
         <button onclick="resetZoom('dailyLineChart')">Redefinir Zoom</button>
     </div>
 
-    <!-- Complete Line Charts for Normalized/Reconstructed Data -->
+    <!-- Complete Line Charts -->
     {% if data_type == 'normalized' or data_type == 'reconstruido' %}
     <div class="chart-container">
-        <h2>Gráfico de Linha Completo - Todos os Instantes</h2>
+        <h2>Evolução de Caudal</h2>
         <canvas id="linhaDiariaChartT" height="100"></canvas>
         <button onclick="resetZoom('linhaDiariaChartT')">Redefinir Zoom</button>
         <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 15px; align-items: end;">
@@ -621,6 +567,51 @@
         <div id="resultadoEstatisticas"></div>
     </div>
 
+    <!-- Tabela para as falhas -->
+    <div class="chart-container">
+        <h2>
+            {% if comparison_mode %}
+                Falhas nos Dados - Comparação
+            {% else %}
+                Falhas nos Dados - Ano {{ selected_year }}
+            {% endif %}
+        </h2>
+
+        {% if comparison_mode and selected_series|length > 1 %}
+            <table class="small-table comparison-table" id="comparison-gap-table">
+                <thead id="comparison-gap-header"></thead>
+                <tbody id="comparison-gap-body"></tbody>
+            </table>
+        {% else %}
+            <table class="small-table">
+                <thead>
+                    <tr>
+                        <th>Mês</th>
+                        <th>Falhas</th>
+                        <th>Esperado</th>
+                        <th>% Falhas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in gap_table_rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td>{{ row.gap }}</td>
+                        <td>{{ row.expected }}</td>
+                        <td>{{ row.percent }}%</td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        <td>{{ total_gaps }}</td>
+                        <td>{{ total_expected }}</td>
+                        <td>{{ total_gap_percent }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
     {% endif %}
 
     <iframe id="download_iframe" style="display: none;"></iframe>
@@ -629,24 +620,21 @@
     <div class="chart-container">
         <h2>
             {% if comparison_mode %}
-                Contagem Mensal - Comparação
+                Contagem De Entradas Mensal - Comparação
             {% else %}
-                Contagem Mensal - Ano {{ selected_year }}
+                Contagem De Entradas Mensal - Ano {{ selected_year }}
             {% endif %}
         </h2>
         
         {% if comparison_mode and selected_series|length > 1 %}
-            <!-- Comparison mode table - populated by JavaScript -->
+            <!-- Comparison mode table -->
             <table class="small-table comparison-table" id="comparison-count-table">
                 <thead id="comparison-count-header">
-                    <!-- Headers will be populated by JavaScript -->
                 </thead>
                 <tbody id="comparison-count-body">
-                    <!-- Data will be populated by JavaScript -->
                 </tbody>
             </table>
         {% else %}
-            <!-- Single series mode table -->
             <table class="small-table">
                 <thead>
                     <tr>
@@ -770,8 +758,8 @@
 //console.log("Total de valores:", linhaTemporalValoresT.length);
 //console.log("Número de valores null:", linhaTemporalValoresT.filter(v => v === null).length);
         const getScalesOptions = () => {
-            const isDark = document.body.classList.contains('dark-mode');
-            const color = isDark ? '#ffffff' : '#000000';
+           
+            const color = '#000000';
             return {
                 x: {
                     beginAtZero: true,
@@ -1215,13 +1203,13 @@ document.getElementById("serie_id").addEventListener("change", function () {
                             responsive: true,
                             scales: {
                                 x: {
-                                    title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    title: { display: true, text: 'Mês', color:'#000000' },
+                                    ticks: { color:'#000000' }
                                 },
                                 y: {
                                     beginAtZero: true,
-                                    title: { display: true, text: 'Média (m³/s)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    title: { display: true, text: 'Média (m³/s)', color:'#000000' },
+                                    ticks: { color: '#000000' }
                                 }
                             },
                             plugins: {
@@ -1243,21 +1231,21 @@ document.getElementById("serie_id").addEventListener("change", function () {
                             responsive: true,
                             scales: {
                                 x: {
-                                    title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    title: { display: true, text: 'Mês', color:'#000000' },
+                                    ticks: { color:'#000000' }
                                 },
                                 y: {
                                     beginAtZero: true,
                                     position: 'left',
-                                    title: { display: true, text: 'Média (m³/s)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    title: { display: true, text: 'Média (m³/s)', color: '#000000' },
+                                    ticks: { color:'#000000' }
                                 },
                                 y1: {
                                     beginAtZero: true,
                                     position: 'right',
                                     grid: { drawOnChartArea: false },
-                                    title: { display: true, text: 'Total (L)', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    title: { display: true, text: 'Total (L)', color: '#000000' },
+                                    ticks: { color:  '#000000' }
                                 }
                             },
                             plugins: {
@@ -1290,17 +1278,17 @@ document.getElementById("serie_id").addEventListener("change", function () {
                             responsive: true,
                             scales: {
                                 x: {
-                                    title: { display: true, text: 'Mês', color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    title: { display: true, text: 'Mês', color: '#000000' },
+                                    ticks: { color: '#000000' }
                                 },
                                 y: {
                                     beginAtZero: true,
                                     title: {
                                         display: true,
                                         text: 'Caudal Médio (m³/s)',
-                                        color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000'
+                                        color: '#000000'
                                     },
-                                    ticks: { color: document.body.classList.contains('dark-mode') ? '#ffffff' : '#000000' }
+                                    ticks: { color: '#000000' }
                                 }
                             },
                             plugins: {
@@ -1403,8 +1391,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
                 }
             }
 
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+           
+            const textColor ='#000000';
 
             const boxplotConfig = {
                 type: 'boxplot',
@@ -1497,8 +1485,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
         }
 
         function createComparisonBoxplot(comparisonData, months) {
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+          
+            const textColor = '#000000';
             
             const datasets = [];
             const colorPalette = [
@@ -1648,7 +1636,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                                 font: { size: 12 }
                             },
                             grid: {
-                                color: isDark ? '#444' : '#e0e0e0'
+                                color: '#e0e0e0'
                             }
                         },
                         y: {
@@ -1667,7 +1655,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                                 }
                             },
                             grid: {
-                                color: isDark ? '#444' : '#e0e0e0'
+                                color: '#e0e0e0'
                             }
                         }
                     }
@@ -1688,8 +1676,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
         }
 
         function createAlternativeComparisonBoxplot(comparisonData, months) {
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+          
+            const textColor = '#000000';
             
             const datasets = [];
             const colorPalette = [
@@ -1839,7 +1827,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                                 font: { size: 12 }
                             },
                             grid: {
-                                color: isDark ? '#444' : '#e0e0e0'
+                                color: '#e0e0e0'
                             }
                         },
                         y: {
@@ -1858,7 +1846,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                                 }
                             },
                             grid: {
-                                color: isDark ? '#444' : '#e0e0e0'
+                                color:'#e0e0e0'
                             }
                         }
                     }
@@ -1909,8 +1897,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
                 }
             });
 
-             const isDark = document.body.classList.contains('dark-mode');
-             const color = isDark ? '#ffffff' : '#000000';
+             
+             const color = '#000000';
 
             const alternativeConfig = {
                 type: 'line',
@@ -2032,7 +2020,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                                 font: { size: 12 }
                             },
                             grid: {
-                                color: isDark ? '#444' : '#e0e0e0'
+                                color: '#e0e0e0'
                             }
                         },
                         y: {
@@ -2051,7 +2039,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                                 }
                             },
                             grid: {
-                                color: isDark ? '#444' : '#e0e0e0'
+                                color: '#e0e0e0'
                             }
                         }
                     }
@@ -2085,8 +2073,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
                 return;
             }
 
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+           
+            const textColor = '#000000';
 
             const dailyConfig = {
                 type: 'line',
@@ -2157,8 +2145,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
         }
 
         function createComparisonDailyLineChart(comparisonData) {
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+          
+            const textColor ='#000000';
 
             const colorPalette = [
                 '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500',
@@ -2567,14 +2555,14 @@ document.getElementById("serie_id").addEventListener("change", function () {
         function showAutoFillNotification(selectedYears, serieId) {
             
             const notification = document.createElement('div');
-            const isDarkMode = document.body.classList.contains('dark-mode');
+           
             
             notification.style.position = 'fixed';
             notification.style.top = '20px';
             notification.style.right = '20px';
-            notification.style.backgroundColor = isDarkMode ? '#2c3e50' : '#d4edda';
-            notification.style.color = isDarkMode ? '#74b9ff' : '#155724';
-            notification.style.border = isDarkMode ? '1px solid #74b9ff' : '1px solid #c3e6cb';
+            notification.style.backgroundColor ='#d4edda';
+            notification.style.color = '#155724';
+            notification.style.border = '1px solid #c3e6cb';
             notification.style.borderRadius = '8px';
             notification.style.padding = '12px 16px';
             notification.style.zIndex = '9999';
@@ -2586,7 +2574,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
             const seriesName = document.querySelector(`input[value="${serieId}"]`).parentElement.querySelector('label').textContent;
             notification.innerHTML = `
                 <div style="display: flex; align-items: flex-start; gap: 8px;">
-                    <i class="fas fa-check-circle" style="margin-top: 2px; color: ${isDarkMode ? '#74b9ff' : '#0077b6'};"></i> 
+                    <i class="fas fa-check-circle" style="margin-top: 2px; color:'#0077b6'};"></i> 
                     <div>
                         <strong>Anos selecionados automaticamente:</strong><br>
                         <small>${seriesName}: ${selectedYears.join(', ')}</small>
@@ -2634,20 +2622,9 @@ document.getElementById("serie_id").addEventListener("change", function () {
             }
         });
 
-        if (localStorage.getItem('modoEscuro') === 'ativo') {
-            document.body.classList.add('dark-mode');
-            updateChartsTheme();
-        }
+       
 
-        function toggleTheme() {
-            document.body.classList.toggle("dark-mode");
-            if (document.body.classList.contains('dark-mode')) {
-                localStorage.setItem('modoEscuro', 'ativo');
-            } else {
-                localStorage.setItem('modoEscuro', 'inativo');
-            }
-            updateChartsTheme();
-        }
+       
 
         function showLoading() {
             const loadingSpinner = document.getElementById('loading-spinner');
@@ -2782,54 +2759,82 @@ document.getElementById("serie_id").addEventListener("change", function () {
             setTimeout(showCacheStatus, 1000);
         });
 
-        function exportarExcel() {
-            showLoading();
-            const comparisonMode = document.getElementById('comparison_mode').checked;
-            let url;
-            
-            if (comparisonMode) {
-                const checkboxes = document.querySelectorAll('input[name="serie_ids"]:checked');
-                const serieIds = Array.from(checkboxes).map(cb => cb.value);
-                const tipo = document.getElementById('data_type').value;
-                const metodo = document.getElementById('recon_method').value;
-                
-                const params = new URLSearchParams();
-                serieIds.forEach(id => params.append('serie_ids', id));
-                params.append('data_type', tipo);
-                params.append('recon_method', metodo);
-                
-                
-                serieIds.forEach(serieId => {
-                    const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]:checked`);
-                    yearCheckboxes.forEach(checkbox => {
-                        params.append(`years_${serieId}`, checkbox.value);
-                    });
+  
+async function exportarExcel() {
+    showLoading();
+    try {
+        const comparisonMode = document.getElementById('comparison_mode').checked;
+        let url;
+
+        if (comparisonMode) {
+            const checkboxes = document.querySelectorAll('input[name="serie_ids"]:checked');
+            const serieIds = Array.from(checkboxes).map(cb => cb.value);
+            const tipo = document.getElementById('data_type').value;
+            const metodo = document.getElementById('recon_method').value;
+
+            const params = new URLSearchParams();
+            serieIds.forEach(id => params.append('serie_ids', id));
+            params.append('data_type', tipo);
+            params.append('recon_method', metodo);
+
+            serieIds.forEach(serieId => {
+                const yearCheckboxes = document.querySelectorAll(`input[name="years_${serieId}"]:checked`);
+                yearCheckboxes.forEach(checkbox => {
+                    params.append(`years_${serieId}`, checkbox.value);
                 });
-                
-                url = `/caudais/exportar_excel/?${params.toString()}`;
-            } else {
-                const serie = document.getElementById('serie_id').value;
-                const tipo = document.getElementById('data_type').value;
-                const metodo = document.getElementById('recon_method').value;
-                const ano = document.getElementById('year').value;
-                
-                const params = new URLSearchParams();
-                params.append('serie_id', serie);
-                params.append('data_type', tipo);
-                params.append('recon_method', metodo);
-                if (ano) {
-                    
-                    params.append(`years_${serie}`, ano);
-                }
-                
-                url = `/caudais/exportar_excel/?${params.toString()}`;
+            });
+
+            url = `/caudais/exportar_excel/?${params.toString()}`;
+        } else {
+            const serie = document.getElementById('serie_id').value;
+            const tipo = document.getElementById('data_type').value;
+            const metodo = document.getElementById('recon_method').value;
+            const ano = document.getElementById('year').value;
+
+            const params = new URLSearchParams();
+            params.append('serie_id', serie);
+            params.append('data_type', tipo);
+            params.append('recon_method', metodo);
+            if (ano) {
+                params.append(`years_${serie}`, ano);
             }
 
-            const iframe = document.getElementById('download_iframe');
-            iframe.src = url;
-
-            setTimeout(hideLoading, 16000); 
+            url = `/caudais/exportar_excel/?${params.toString()}`;
         }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            hideLoading();
+            alert("Erro ao exportar: " + (await response.text()));
+            return;
+        }
+
+        const blob = await response.blob();
+
+        // Extrair nome do ficheiro do header
+        let filename = "relatorio.xlsx";
+        const disposition = response.headers.get("Content-Disposition");
+        if (disposition && disposition.includes("filename=")) {
+            const match = disposition.match(/filename="?([^"]+)"?/);
+            if (match && match[1]) {
+                filename = match[1];
+            }
+        }
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (error) {
+        alert("Erro na exportação: " + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
 
         // -------- PDF EXPORT ---------
         function getCSRF() {
@@ -3218,6 +3223,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
             if (comparisonMode && Object.keys(seriesData).length > 1) {
                 setTimeout(() => {
                     populateComparisonCountTable();
+                    populateComparisonGapTable();
                 }, 600);
             }
         }
@@ -3232,8 +3238,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
 
         
         function createLinhaCharts() {
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+          
+            const textColor = '#000000';
             
             
             if (comparisonMode && Object.keys(comparisonLineChartData).length > 0) {
@@ -3354,7 +3360,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                         scales: {
                             x: {
                                 type: 'category',
-                                title: { display: true, text: 'Timestamp (Todos os Instantes)', color: textColor },
+                                title: { display: true, text: 'Timestamp', color: textColor },
                                 ticks: {
                                     maxTicksLimit: 10,
                                     autoSkip: true,
@@ -3411,8 +3417,8 @@ document.getElementById("serie_id").addEventListener("change", function () {
 
         
         function createComparisonLinhaCharts() {
-            const isDark = document.body.classList.contains('dark-mode');
-            const textColor = isDark ? '#ffffff' : '#000000';
+         
+            const textColor = '#000000';
             
             const colorPalette = [
                 '#0077b6', '#f77f00', '#c9184a', '#0d8f5f', '#6a0572', '#fb8500',
@@ -3631,7 +3637,7 @@ document.getElementById("serie_id").addEventListener("change", function () {
                         scales: {
                             x: {
                                 type: 'category',
-                                title: { display: true, text: 'Timestamp (Todos os Instantes)', color: textColor },
+                                title: { display: true, text: 'Timestamp', color: textColor },
                                 ticks: {
                                     maxTicksLimit: 10,
                                     autoSkip: true,
@@ -3829,14 +3835,14 @@ console.log(comparisonInstantaneousData);
                                     <h5 style="margin-bottom: 0.5rem; color: #0077b6;">${serieName}</h5>
                                     <p style="margin: 0 0 0.5rem 0; font-size: 12px; color: #6c757d;"><em>Período: ${formatPeriod()}</em></p>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
-                                        <p><strong>Total:</strong> ${dados.length.toLocaleString('pt-PT')}</p>
-                                        <p><strong>Média:</strong> ${media.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                        <p><strong>Máximo:</strong> ${max.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                        <p><strong>Mínimo:</strong> ${min.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                        <p><strong>Mediana:</strong> ${mediana.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                        <p><strong>Amplitude:</strong> ${(max - min).toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                        <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                        <p><strong>Variância:</strong> ${variancia.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} (m³/s)²</p>
+                                        <p><strong>Total:</strong> ${dados.length.toLocaleString()}</p>
+                                        <p><strong>Média:</strong> ${media.toFixed(3)} m³/s</p>
+                                        <p><strong>Máximo:</strong> ${max.toFixed(3)} m³/s</p>
+                                        <p><strong>Mínimo:</strong> ${min.toFixed(3)} m³/s</p>
+                                        <p><strong>Mediana:</strong> ${mediana.toFixed(3)} m³/s</p>
+                                        <p><strong>Amplitude:</strong> ${(max - min).toFixed(3)} m³/s</p>
+                                        <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toFixed(3)} m³/s</p>
+                                        <p><strong>Variância:</strong> ${variancia.toFixed(3)} (m³/s)²</p>
                                     </div>
                                 </div>
                             `;
@@ -3883,14 +3889,14 @@ console.log(comparisonInstantaneousData);
                         ">
                             <h5 style="margin-bottom: 0.5rem; color: #343a40;">Estatísticas Globais (todas as séries)</h5>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
-                                <p><strong>Total:</strong> ${combinedValues.length.toLocaleString('pt-PT')}</p>
-                                <p><strong>Média:</strong> ${mediaG.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Máximo:</strong> ${maxG.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Mínimo:</strong> ${minG.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Mediana:</strong> ${medianaG.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Amplitude:</strong> ${(maxG - minG).toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Desvio Padrão:</strong> ${desvioPadraoG.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Variância:</strong> ${varianciaG.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} (m³/s)²</p>
+                                <p><strong>Total:</strong> ${combinedValues.length.toLocaleString()}</p>
+                                <p><strong>Média:</strong> ${mediaG.toFixed(3)} m³/s</p>
+                                <p><strong>Máximo:</strong> ${maxG.toFixed(3)} m³/s</p>
+                                <p><strong>Mínimo:</strong> ${minG.toFixed(3)} m³/s</p>
+                                <p><strong>Mediana:</strong> ${medianaG.toFixed(3)} m³/s</p>
+                                <p><strong>Amplitude:</strong> ${(maxG - minG).toFixed(3)} m³/s</p>
+                                <p><strong>Desvio Padrão:</strong> ${desvioPadraoG.toFixed(3)} m³/s</p>
+                                <p><strong>Variância:</strong> ${varianciaG.toFixed(3)} (m³/s)²</p>
                             </div>
                         </div>
                     `;
@@ -3938,14 +3944,14 @@ console.log(comparisonInstantaneousData);
                             max-width: 500px;
                         ">
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; font-size: 14px;">
-                                <p><strong>Total:</strong> ${dados.length.toLocaleString('pt-PT')}</p>
-                                <p><strong>Média:</strong> ${media.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Máximo:</strong> ${max.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Mínimo:</strong> ${min.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Mediana:</strong> ${mediana.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Amplitude:</strong> ${(max - min).toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} m³/s</p>
-                                <p><strong>Variância:</strong> ${variancia.toLocaleString('pt-PT', { minimumFractionDigits: 3 })} (m³/s)²</p>
+                                <p><strong>Total:</strong> ${dados.length.toLocaleString()}</p>
+                                <p><strong>Média:</strong> ${media.toFixed(3)} m³/s</p>
+                                <p><strong>Máximo:</strong> ${max.toFixed(3)} m³/s</p>
+                                <p><strong>Mínimo:</strong> ${min.toFixed(3)} m³/s</p>
+                                <p><strong>Mediana:</strong> ${mediana.toFixed(3)} m³/s</p>
+                                <p><strong>Amplitude:</strong> ${(max - min).toFixed(3)} m³/s</p>
+                                <p><strong>Desvio Padrão:</strong> ${desvioPadrao.toFixed(3)} m³/s</p>
+                                <p><strong>Variância:</strong> ${variancia.toFixed(3)} (m³/s)²</p>
                             </div>
                         </div>
                     `;
@@ -4119,6 +4125,68 @@ console.log(comparisonInstantaneousData);
         }
 
         logReportData();
+
+        // Gaps
+        function populateComparisonGapTable() {
+            const table = document.getElementById('comparison-gap-table');
+            if (!table || !comparisonMode || Object.keys(seriesData).length <= 1) {
+                return;
+            }
+
+            const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+            const seriesArray = Object.keys(seriesData).map(key => seriesData[key]);
+            const header = document.getElementById('comparison-gap-header');
+            const body = document.getElementById('comparison-gap-body');
+
+            header.innerHTML = '';
+            body.innerHTML = '';
+
+            const headerRow = document.createElement('tr');
+            headerRow.appendChild(document.createElement('th')).textContent = 'Mês';
+
+            seriesArray.forEach(series => {
+                const th = document.createElement('th');
+                const selectedYear = series.selected_year || 'N/A';
+                th.textContent = `${series.serie.nome} (${selectedYear})`;
+                headerRow.appendChild(th);
+            });
+
+            header.appendChild(headerRow);
+
+            for (let month = 0; month < 12; month++) {
+                const row = document.createElement('tr');
+                const monthCell = document.createElement('td');
+                monthCell.textContent = monthNames[month];
+                row.appendChild(monthCell);
+
+                seriesArray.forEach(series => {
+                    const td = document.createElement('td');
+                    const gapVal = (series.month_gaps && series.month_gaps.length > month) ? series.month_gaps[month] : 0;
+                    td.textContent = gapVal;
+                    row.appendChild(td);
+                });
+                body.appendChild(row);
+            }
+
+            // Totais
+            const totalRow = document.createElement('tr');
+            const totLabel = document.createElement('td');
+            totLabel.innerHTML = '<strong>Total</strong>';
+            totalRow.appendChild(totLabel);
+
+            seriesArray.forEach(series => {
+                const gapsArr = series.month_gaps || [];
+                const expArr = series.month_expected || [];
+                const totalGaps = gapsArr.reduce((a,b)=>a+(b||0),0);
+                const totalExp = expArr.reduce((a,b)=>a+(b||0),0);
+                const td = document.createElement('td');
+                td.innerHTML = `${totalGaps} / ${totalExp} (${totalExp?((totalGaps/totalExp)*100).toFixed(1):0}%)`;
+                totalRow.appendChild(td);
+            });
+            body.appendChild(totalRow);
+        }
     </script>
     <iframe id="download_iframe" style="display: none;"></iframe>
 

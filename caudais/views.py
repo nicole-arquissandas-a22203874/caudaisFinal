@@ -32,6 +32,7 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from Project_django.settings import LOGIN_URL
 
+
 def calculate_boxplot_data(queryset, selected_serie=None, metodo='raw', selected_year=None, calcular=True):
     monthly_stats = {}
 
@@ -54,7 +55,7 @@ def calculate_boxplot_data(queryset, selected_serie=None, metodo='raw', selected
                 "mean": float(est.media),
                 "q3": float(est.q3),
                 "max": float(est.maxWhisker),
-                "outliers": [float(x) for x in outliers] if outliers else []
+                "outliers": [float(x) for x in outliers if x is not None] if outliers else []
             }
 
     else:
@@ -828,7 +829,9 @@ def dashboard(request):
                     'month_labels': [int(m) for m in month_labels],
                     'month_counts': [int(c) for c in month_counts],
                     'month_totals': [float(t) for t in month_totals],
-                    'month_avg': [float(a) for a in month_avg]
+                    'month_avg': [float(a) for a in month_avg],
+                    'month_expected': [calendar.monthrange(year_to_process, m)[1] * 96 for m in range(1, 13)] if data_type in ('normalized', 'reconstruido') else [],
+                    'month_gaps': [max((calendar.monthrange(year_to_process, m)[1] * 96) - month_counts[m-1], 0) for m in range(1, 13)] if data_type in ('normalized', 'reconstruido') else []
                 }
         else:
             
@@ -1261,7 +1264,9 @@ def dashboard(request):
                 'month_labels': [int(m) for m in month_labels],
                 'month_counts': [int(c) for c in month_counts],
                 'month_totals': [float(t) for t in month_totals],
-                'month_avg': [float(a) for a in month_avg]
+                'month_avg': [float(a) for a in month_avg],
+                'month_expected': [calendar.monthrange(year_for_monthly, m)[1] * 96 for m in range(1, 13)] if (data_type in ('normalized', 'reconstruido') and year_for_monthly) else [],
+                'month_gaps': [max((calendar.monthrange(year_for_monthly, m)[1] * 96) - month_counts[m-1], 0) for m in range(1, 13)] if (data_type in ('normalized', 'reconstruido') and year_for_monthly) else []
             }
 
     if not selected_year_final and all_years:
@@ -1391,6 +1396,31 @@ def dashboard(request):
 
     month_names=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
     
+    # Gaps
+    gap_table_rows = []
+    total_expected = 0
+    total_gaps = 0
+    if series_data:
+        first_key = list(series_data.keys())[0]
+        first_entry = series_data[first_key]
+        if 'month_expected' in first_entry and first_entry['month_expected']:
+            me = first_entry['month_expected']
+            mg = first_entry['month_gaps']
+            ml = first_entry['month_labels']
+            for idx, month_num in enumerate(ml):
+                label_txt = month_names[month_num-1] if 1 <= month_num <= 12 else str(month_num)
+                expected_val = me[idx]
+                gap_val = mg[idx]
+                percent_val = round((gap_val / expected_val * 100) if expected_val else 0, 1)
+                gap_table_rows.append({
+                    'label': label_txt,
+                    'gap': gap_val,
+                    'expected': expected_val,
+                    'percent': percent_val
+                })
+            total_expected = sum(me)
+            total_gaps = sum(mg)
+ 
     context = {
         'pontos_medicao': pontos_medicao,
         'series': series,
@@ -1424,9 +1454,14 @@ def dashboard(request):
         'linha_temporal_valores': valores_grafico_linhas if 'valores_grafico_linhas' in locals() else [],
         'linha_temporal_labelsT': labels_grafico_linhasT if 'labels_grafico_linhasT' in locals() else [],
         'linha_temporal_valoresT': valores_grafico_linhasT if 'valores_grafico_linhasT' in locals() else [],
+        'gap_table_rows': gap_table_rows,
+        'total_expected': total_expected,
+        'total_gaps': total_gaps,
+        'total_gap_percent': round((total_gaps / total_expected * 100), 1) if total_expected else 0,
     }
 
     return render(request, 'caudais/dashboard.html', context)
+
 
 
 @login_required
@@ -1561,7 +1596,7 @@ def exportar_excel(request):
                     
                     
                     year_suffix = f"_{'_'.join(map(str, year_filter))}" if year_filter else ""
-                    df.rename(columns={'timestamp': 'Data', 'valor': f'Caudal_{serie.nome}{year_suffix}'}, inplace=True)
+                    df.rename(columns={'timestamp': 'Data', 'valor': f'Caudal'}, inplace=True)
                     
                     
                     sheet_name_year = f"_{'_'.join(map(str, year_filter))}" if year_filter else ""
@@ -1569,7 +1604,6 @@ def exportar_excel(request):
                     df.to_excel(writer, index=False, sheet_name=sheet_name)
 
         return response
-
 
 @login_required
 def obter_series_por_ponto(request):
@@ -1756,6 +1790,7 @@ def exportar_pdf(request):
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from reportlab.platypus import KeepTogether
         
         payload = json.loads(request.body.decode('utf-8'))
         
@@ -1794,7 +1829,7 @@ def exportar_pdf(request):
         selected_series = []
         
         story.append(Paragraph("Relatório", title_style))
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 15))
         
         
         if serie_ids:
@@ -1827,7 +1862,7 @@ def exportar_pdf(request):
                 for year in years_to_process:
                     
                     story.append(Paragraph(f"Série: {serie.nome} - Ano: {year}", heading_style))
-                    
+                    story.append(Spacer(1, 5))
                     
                     if data_type == 'raw':
                         queryset = Medicao.objects.filter(serie=serie, timestamp__year=year)
@@ -1864,14 +1899,18 @@ def exportar_pdf(request):
                         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('FONTSIZE', (0, 0), (-1, -1), 9),
                         ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
                         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ]))
+                    story.append(KeepTogether([
+                    Paragraph("Estatísticas Anuais", styles['Heading3']),
+                    annual_table,
+                    Spacer(1, 20)
+
+                    ]))
                     
-                    story.append(Paragraph("Estatísticas Anuais", styles['Heading3']))
-                    story.append(annual_table)
-                    story.append(Spacer(1, 20))
                     
                     
                     monthly_data = queryset.annotate(
@@ -1909,12 +1948,17 @@ def exportar_pdf(request):
                         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                         ('FONTSIZE', (0, 0), (-1, -1), 9),
                         ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
                         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ]))
+                    story.append(KeepTogether([
+                    Paragraph("Estatísticas Mensais", styles['Heading3']),
+                    monthly_table,
+                    Spacer(1, 20)
+
+                    ]))
                     
-                    story.append(Paragraph("Estatísticas Mensais", styles['Heading3']))
-                    story.append(monthly_table)
-                    story.append(Spacer(1, 20))
+
                     
                     
                     boxplot_stats = calculate_boxplot_data(queryset, serie, 
@@ -1922,7 +1966,7 @@ def exportar_pdf(request):
                                                          year, True)
                     
                     if boxplot_stats:
-                        boxplot_table_data = [['Mês', 'Min', 'Q1', 'Mediana', 'Média', 'Q3', 'Max', 'IQR']]
+                        boxplot_table_data = [['Mês', 'Min (m³/s)', 'Q1 (m³/s)', 'Mediana (m³/s)', 'Média (m³/s)', 'Q3 (m³/s)', 'Max (m³/s)', 'IQR (m³/s)']]
                         
                         for month_num in range(1, 13):
                             month_name = month_names[month_num-1]
@@ -1944,25 +1988,27 @@ def exportar_pdf(request):
                         
                         boxplot_table = Table(boxplot_table_data, colWidths=[0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch])
                         boxplot_table.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, -1), 8),
-                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                        ]))
-                        
-                        story.append(Paragraph("Estatísticas de Distribuição (Quartis)", styles['Heading3']))
-                        story.append(boxplot_table)
-                        story.append(Spacer(1, 20))
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 7),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ]))
+                        story.append(KeepTogether([
+                        Paragraph("Estatísticas de Distribuição (Quartis)", styles['Heading3']),
+                        boxplot_table,
+                        Spacer(1, 20)
+
+                        ]))                       
                     
-                    story.append(PageBreak())
         
         if comparison_mode and len(selected_series) > 1:
-            story.append(Paragraph("Tabelas de Comparação", title_style))
-            story.append(Spacer(1, 20))
-            
+            story.append(KeepTogether([Paragraph("Tabelas de Comparação", title_style),
+                            Spacer(1, 20)]))
+           
             comparison_table_data = [['Série/Ano', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
                                     'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']]
             
@@ -2011,19 +2057,23 @@ def exportar_pdf(request):
                 comparison_table = Table(comparison_table_data, 
                                        colWidths=[1.5*inch] + [0.4*inch]*12)
                 comparison_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#90e0ef')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 9),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ]))
+                story.append(KeepTogether([
+                Paragraph("Contagem de entradas Mensal - Comparação", styles['Heading3']),
+                comparison_table,
+                Spacer(1, 20)
+
+                        ]))                       
+            
                 
-                story.append(Paragraph("Contagem Mensal - Comparação", styles['Heading3']))
-                story.append(comparison_table)
-                story.append(Spacer(1, 20))
-                story.append(PageBreak())
 
         
         images = payload.get('images', [])
@@ -2037,7 +2087,7 @@ def exportar_pdf(request):
                 'monthlyTotalChart': 'Volume Total Mensal',
                 'boxplotChart': 'Distribuição Mensal de Caudal',
                 'dailyLineChart': 'Evolução Diária de Caudal',
-                'linhaDiariaChartT': 'Gráfico de Linha Completo - Todos os Instantes'
+                'linhaDiariaChartT': 'Evolução de Caudal'
             }
             
             for img in images:
@@ -2049,7 +2099,7 @@ def exportar_pdf(request):
                 
                 
                 title = chart_titles.get(chart_name, chart_name)
-                story.append(Paragraph(title, heading_style))
+                
                 
                 
                 _header, encoded = data_url.split(',', 1)
@@ -2072,65 +2122,12 @@ def exportar_pdf(request):
                 new_height = original_height * scale_ratio
                 
                 img_obj = Image(img_bytes, width=new_width, height=new_height)
-                story.append(img_obj)
-                story.append(Spacer(1, 20))
+                story.append(KeepTogether([
+                Paragraph(title, heading_style),
+                img_obj,
+                Spacer(1, 20)
+                ]))
                 
-                
-                if chart_name == 'boxplotChart':
-                    story.append(Paragraph("Dados Detalhados do Boxplot", styles['Heading3']))
-
-                    def generate_boxplot_table(serie, yr):
-                        qset = (Medicao.objects.filter(serie=serie, timestamp__year=yr) if data_type == 'raw' else MedicaoProcessada.objects.filter(serie=serie, metodo=('normalized' if data_type=='normalized' else recon_method), timestamp__year=yr))
-                        stats = calculate_boxplot_data(qset, serie, data_type if data_type!='reconstruido' else recon_method, yr, True)
-                        if not stats:
-                            return None
-                        mn=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-                        tbl=[["Mês","Min","Q1","Mediana","Média","Q3","Max","IQR","Outliers"]]
-                        for m in range(1,13):
-                            if m in stats:
-                                s=stats[m]; iqr=float(s['q3'])-float(s['q1']); o=len(s.get('outliers',[]))
-                                tbl.append([mn[m-1],f"{s['min']:.3f}",f"{s['q1']:.3f}",f"{s['median']:.3f}",f"{s['mean']:.3f}",f"{s['q3']:.3f}",f"{s['max']:.3f}",f"{iqr:.3f}",str(o)])
-                            else:
-                                tbl.append([mn[m-1]]+ ["0.000"]*7+["0"])
-                        t=Table(tbl,colWidths=[0.7*inch]*9)
-                        t.setStyle(TableStyle([
-                            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#90e0ef')),
-                            ('TEXTCOLOR',(0,0),(-1,0),colors.black),
-                            ('GRID',(0,0),(-1,-1),0.5,colors.black),
-                            ('ALIGN',(0,0),(-1,-1),'CENTER'),
-                            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-                            ('FONTSIZE',(0,0),(-1,-1),7),
-                            ('VALIGN',(0,0),(-1,-1),'MIDDLE')
-                        ]))
-                        return t
-
-                    if comparison_mode and len(selected_series)>1:
-                        for serie in selected_series:
-                            yrs = series_years.get(str(serie.id), [])
-                            for yr in yrs:
-                                tbl=generate_boxplot_table(serie,yr)
-                                if tbl:
-                                    story.append(Paragraph(f"{serie.nome} ({yr})", styles['Heading4']))
-                                    story.append(tbl)
-                                    story.append(Spacer(1,15))
-                    else:
-                        if selected_series:
-                            serie = selected_series[0]
-                            yr = selected_year if selected_year else None
-                            if not yr:
-                                if data_type == 'raw':
-                                    yr = Medicao.objects.filter(serie=serie).annotate(y=ExtractYear('timestamp')).values_list('y',flat=True).order_by('-y').first()
-                                else:
-                                    method = 'normalized' if data_type == 'normalized' else recon_method
-                                    yr = MedicaoProcessada.objects.filter(serie=serie, metodo=method).annotate(y=ExtractYear('timestamp')).values_list('y',flat=True).order_by('-y').first()
-                            
-                            if yr:
-                                tbl=generate_boxplot_table(serie,yr)
-                                if tbl:
-                                    story.append(Paragraph(f"{serie.nome} ({yr}) - Estatísticas Detalhadas", styles['Heading4']))
-                                    story.append(tbl)
-                                    story.append(Spacer(1,15))
-
                 story.append(Spacer(1, 20))
         
         doc.build(story)
